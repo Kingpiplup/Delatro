@@ -1,0 +1,16 @@
+{
+	"id": "delatro",
+	"name": "Delatro",
+	"display_name": "Delatro",
+	"author": ["Devdelta"],
+	"description": "Adding a few simple jokers for fun :>",
+	"prefix": "delatro",
+	"main_file": "Delatro.lua",
+	"priority": 0,
+	"badge_colour": "7651A4",
+	"badge_text_colour": "FFFFFF",
+	"version": "1.0.0",
+	"dependencies": [
+		"Steamodded (>=1.0.0~ALPHA-1428c)"
+	]
+}
