@@ -105,22 +105,32 @@ SMODS.Joker{
     loc_txt = {
         name = 'Mult Joker',
         text = {
-            'Retriggers first played {C:mult}Mult Card{} twice'
+            'Retrigger {C:attention}first{}',
+            'scored {C:attention}Mult Card{}',
+            'an additional {C:attention}2 {}times'
         }
     },
-    config = { extra = { repetitions = 2, card_found = nil} },
-    if context.cardarea == G.play and context.repetition and not context.repetition_only then
-        return {
-            for i = 1, #context.scoring_hand do
-                if SMODS.has_enhancement(context.scoring_hand[i], 'm_mult') then
-                    card_found = context.scoring_hand[i]
+    config = { extra = { repetitions = 2, card_found = nil, found = false } },
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue+1] = G.P_CENTERS.m_mult
+    end,
+    calculate = function(self,card,context) --its ineficient but it works
+        if context.cardarea == G.play and context.repetition and not context.repetition_only then
+            for _, played_card in ipairs(context.scoring_hand) do
+                if SMODS.has_enhancement(played_card, 'm_mult') then
+                    card.ability.extra.card_found = played_card
+                    card.ability.extra.found = true
                     break
                 end 
             end
-            message = 'Again!',
-			repetitions = card.ability.extra.repetitions,
-			card = context.other_card
-        }
+            if context.other_card == card.ability.extra.card_found then
+                return {
+                    message = 'Again!',
+                    repetitions = card.ability.extra.repetitions,
+                    card = context.other_card
+                }
+            end
+        end      
     end
 }
 
