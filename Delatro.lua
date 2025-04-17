@@ -91,6 +91,39 @@ SMODS.Joker{
         end
     end
 }
+SMODS.Joker{
+    name = "Mult Joker", 
+    key = 'mult_joker',
+    rarity = 1,
+    atlas = 'Delatro1',
+    pos = {x=2,y=0},
+    cost = 5,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = 'Mult Joker',
+        text = {
+            'Retriggers first played {C:mult}Mult Card{} twice'
+        }
+    },
+    config = { extra = { repetitions = 2, card_found = nil} },
+    if context.cardarea == G.play and context.repetition and not context.repetition_only then
+        return {
+            for i = 1, #context.scoring_hand do
+                if SMODS.has_enhancement(context.scoring_hand[i], 'm_mult') then
+                    card_found = context.scoring_hand[i]
+                    break
+                end 
+            end
+            message = 'Again!',
+			repetitions = card.ability.extra.repetitions,
+			card = context.other_card
+        }
+    end
+}
+
 
 if JokerDisplay then 
     local jd_def = JokerDisplay.Definitions
