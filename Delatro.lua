@@ -3,6 +3,7 @@
 
 local mod = SMODS.current_mod
 
+
 SMODS.Atlas {key = 'Delatro1',path = 'Delatro1Sprites.png',px =71,py = 95}
 
 SMODS.Joker{
@@ -200,6 +201,24 @@ SMODS.Joker{
                     repetitions = card.ability.extra.repetitions,
                     card = card,
                 }
+            elseif context.other_card:get_id() == 6 then
+                return {
+                    message = 'Again!',
+                    repetitions = card.ability.extra.repetitions,
+                    card = card,
+                }
+            elseif context.other_card:get_id() == 7 then
+                return {
+                    message = 'Again!',
+                    repetitions = card.ability.extra.repetitions,
+                    card = card,
+                }
+            elseif context.other_card:get_id() == 8 then
+                return {
+                    message = 'Again!',
+                    repetitions = card.ability.extra.repetitions,
+                    card = card,
+                }
             end
         end
     end
@@ -324,7 +343,7 @@ SMODS.Joker{
             'level up played hand'
         }
     },
-    config = { extra = { odds = 4 } },
+    config = { extra = { odds = 4 , handup = scoring_name} },
     loc_vars = function(self, info_queue, card)
         return {
             vars = {
@@ -366,7 +385,7 @@ if JokerDisplay then
     }
     jd_def['j_delatro_bonus_joker'] = {
         text = {
-            { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "mult" },
+            { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "" },
             { text = "x",                              scale = 0.35 },
             { text = "$",                              colour = G.C.GOLD },
             { ref_table = "card.ability.extra",        ref_value = "income", colour = G.C.GOLD },
@@ -402,6 +421,27 @@ if JokerDisplay then
             {text = "(5,6,7,8)"},
         },
         text_config = {colour = G.C.UI.TEXT_DARK, scale = 0.3},
+        retrigger_function = function(playing_card, scoring_hand, held_in_hand, joker_card)
+            if held_in_hand then return 0 end
+            return (playing_card:get_id() == 5 or playing_card:get_id() == 6 or
+                    playing_card:get_id() == 7 or playing_card:get_id() == 8) and
+                joker_card.ability.extra.repetitions * JokerDisplay.calculate_joker_triggers(joker_card) or 0
+        end
+    }
+    jd_def['j_delatro_mult_joker'] = {
+        retrigger_function = function(playing_card, scoring_hand, held_in_hand, joker_card)
+            if held_in_hand then return 0 end
+            local cardFound = nil
+            local found = false
+            for _, played_card in ipairs(scoring_hand) do
+                if SMODS.has_enhancement(played_card, 'm_mult') then
+                    found = true
+                    cardFound = played_card
+                    break
+                end
+            end
+            return cardFound == playing_card and SMODS.has_enhancement(playing_card, 'm_mult') and found and JokerDisplay.calculate_joker_triggers(joker_card) * joker_card.ability.extra.repetitions or 0
+        end
     }
     jd_def['j_delatro_prime_time'] = {
         calc_function = function(card)
@@ -415,17 +455,21 @@ if JokerDisplay then
                 for _, scoring_card in pairs(scoring_hand) do
                     if scoring_hand or scoring_card.highlighted then
                         if scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() == 2 and a then
-                            count = count + 3
+                            count = count + (3 * JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand))
                             a = false
+                            JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
                         elseif scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() == 3 and b then
-                            count = count + 5
+                            count = count + (5 * JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand))
                             b = false
+                            JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
                         elseif scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() == 5 and c then
-                            count = count + 7
+                            count = count + (7 * JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand))
                             c = false
+                            JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
                         elseif scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() == 7 and d then
-                            count = count + 11
+                            count = count + (11 * JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand))
                             d = false
+                            
                         end
                     end 
                 end
@@ -444,48 +488,33 @@ if JokerDisplay then
         
     }
     jd_def['j_delatro_top_10'] = {
-        calculate = function(card)
+        text = {
+            {text = "+"},
+            {ref_table = 'card.joker_display_values', ref_value = 'chips', retrigger_type = 'chips'}
+        },
+        text_config = {colour = G.C.CHIPS},
+        calc_function = function(card)
             local text, _, scoring_hand = JokerDisplay.evaluate_hand()
             local chips = 0
             if text ~= 'Unknown' then
                 for _, scoring_card in pairs(scoring_hand) do
                     if scoring_hand or scoring_card.highlighted then
                         if scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() >= 1 and scoring_card:get_id() <= 10 then
-                            chips = chips + 8
+                            chips = chips + (8 * JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand))
                         end 
                     end 
                 end
             end
             card.joker_display_values.chips = chips
-        end,
-        text = {
-            {text = "+"},
-            {ref_table = 'card.joker_display_values', ref_value = 'chips', retrigger_type = 'chips'}
-        },
-        text_config = {colour = G.C.CHIPS},
-        
+        end
     }
-    jd_def['j_delatro_7_iris'] = {
-        calculate = function(card)
-            local text, _, scoring_hand = JokerDisplay.evaluate_hand()
-            local count = 0
-            if text ~= 'Unknown' then
-                for _, scoring_card in pairs(scoring_hand) do
-                    if scoring_hand or scoring_card.highlighted then
-                        if scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() == 7 then
-                            count = count + 1
-                        end 
-                    end 
-                end
-            end
-            card.joker_display_values.count = count
-            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { (G.GAME and G.GAME.probabilities.normal or 1), card.ability.extra.odds } }
-        end,
+    jd_def['j_delatro_7_iris'] = {  
         text = {
-            { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "mult" },
-            { text = " 7",                              colour = G.C.FILTER },
-            { text = "s"},
+            { text = "+"},
+            { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "count" },
+            { text = " Lvs",       scale = 0.35},
         },
+        text_config = {scale = 0.35, colour = G.C.SECONDARY_SET.Planet},
         extra = {
             {
                 { text = "(" },
@@ -493,7 +522,23 @@ if JokerDisplay then
                 { text = ")" },
             }
         },
+        reminder_text = {
+            { text = "(7)" },
+        },
         extra_config = { colour = G.C.GREEN, scale = 0.3 },
+        calc_function = function(card)
+            local count = 0
+            local text, _, scoring_hand = JokerDisplay.evaluate_hand()
+            if text ~= 'Unknown' then
+                for _, scoring_card in pairs(scoring_hand) do
+                    if scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() == 7 then
+                        count = count + JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
+                    end
+                end
+            end
+            card.joker_display_values.count = count
+            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { (G.GAME and G.GAME.probabilities.normal or 1), card.ability.extra.odds } }
+        end
     }
 
 end
