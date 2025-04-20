@@ -266,7 +266,86 @@ SMODS.Joker{
         end
     end
 }
-
+SMODS.Joker{
+    name = 'Top 10',
+    key = 'top_10',
+    rarity = 1,
+    atlas = 'Delatro1',
+    pos = {x=1,y=1},
+    cost = 4,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = 'Top 10',
+        text = {
+            'Scored number cards',
+            'give {C:chips}+#1#{} Chips',
+        }
+    },
+    config = { extra = { chips = 8} },
+    loc_vars = function(self, info_queue, card)
+        return {
+             vars = {
+                card.ability.extra.chips
+                } 
+            }
+    end,
+    calculate = function(self,card,context)
+        if context.cardarea == G.play and context.individual then
+            if context.other_card:get_id() >= 1 and context.other_card:get_id() <= 10 then
+                return {
+                    chip_mod = card.ability.extra.chips,
+                    message = localize {type = 'variable', key = 'a_chips', vars = {card.ability.extra.chips}},
+                    card = card.other_card,
+                }
+            end
+        end
+    end
+    
+}
+SMODS.Joker{
+    name = '7 Iris',
+    key = '7_iris',
+    rarity = 2,
+    atlas = 'Delatro1',
+    pos = {x=2,y=1},
+    cost = 6,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = '7 Iris',
+        text = {
+            'Each played {C:attention}7{} has a',
+            '{C:green}#1# in #2# {} chance to',
+            'level up played hand'
+        }
+    },
+    config = { extra = { odds = 4 } },
+    loc_vars = function(self, info_queue, card)
+        return {
+            vars = {
+                (G.GAME.probabilities.normal or 1), card.ability.extra.odds
+            } 
+        }
+    end,
+    calculate = function(self,card,context)
+        if context.cardarea == G.play and context.individual then
+            if context.other_card:get_id() == 7 then
+                if pseudorandom('7_iris') < G.GAME.probabilities.normal/card.ability.extra.odds then
+                    return {
+                        message = 'Level Up!',
+                        card = card,
+                        level_up_hand(card, context.scoring_name, true, 1)
+                    }
+                end
+            end
+        end
+    end
+}
 
 
 if JokerDisplay then 
@@ -363,6 +442,58 @@ if JokerDisplay then
             {text = "(2,3,5,7)"},
         },
         
+    }
+    jd_def['j_delatro_top_10'] = {
+        calculate = function(card)
+            local text, _, scoring_hand = JokerDisplay.evaluate_hand()
+            local chips = 0
+            if text ~= 'Unknown' then
+                for _, scoring_card in pairs(scoring_hand) do
+                    if scoring_hand or scoring_card.highlighted then
+                        if scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() >= 1 and scoring_card:get_id() <= 10 then
+                            chips = chips + 8
+                        end 
+                    end 
+                end
+            end
+            card.joker_display_values.chips = chips
+        end,
+        text = {
+            {text = "+"},
+            {ref_table = 'card.joker_display_values', ref_value = 'chips', retrigger_type = 'chips'}
+        },
+        text_config = {colour = G.C.CHIPS},
+        
+    }
+    jd_def['j_delatro_7_iris'] = {
+        calculate = function(card)
+            local text, _, scoring_hand = JokerDisplay.evaluate_hand()
+            local count = 0
+            if text ~= 'Unknown' then
+                for _, scoring_card in pairs(scoring_hand) do
+                    if scoring_hand or scoring_card.highlighted then
+                        if scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() == 7 then
+                            count = count + 1
+                        end 
+                    end 
+                end
+            end
+            card.joker_display_values.count = count
+            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { (G.GAME and G.GAME.probabilities.normal or 1), card.ability.extra.odds } }
+        end,
+        text = {
+            { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "mult" },
+            { text = " 7",                              colour = G.C.FILTER },
+            { text = "s"},
+        },
+        extra = {
+            {
+                { text = "(" },
+                { ref_table = "card.joker_display_values", ref_value = "odds" },
+                { text = ")" },
+            }
+        },
+        extra_config = { colour = G.C.GREEN, scale = 0.3 },
     }
 
 end
