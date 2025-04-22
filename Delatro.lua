@@ -1,6 +1,5 @@
 ----------------------------------------------
-------------MOD CODE -------------------------
-
+------------MOD CODE 
 local mod = SMODS.current_mod
 
 
@@ -469,7 +468,7 @@ if JokerDisplay then
                         elseif scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() == 7 and d then
                             count = count + (11 * JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand))
                             d = false
-                            
+                    
                         end
                     end 
                 end
