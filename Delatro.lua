@@ -1,7 +1,7 @@
 ----------------------------------------------
-------------MOD CODE 
-local mod = SMODS.current_mod
+------------MOD CODE -------------------------
 
+local mod = SMODS.current_mod
 
 SMODS.Atlas {key = 'Delatro1',path = 'Delatro1Sprites.png',px =71,py = 95}
 
@@ -364,7 +364,69 @@ SMODS.Joker{
         end
     end
 }
+SMODS.Joker{
+    name = 'Consolidation',
+    key = 'consolidation',
+    rarity = 1,
+    atlas = 'Delatro1',
+    pos = {x=3,y=1},
+    cost = 4,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = 'Consolidation',
+        text = {
+            '{C:money}+$#1#{} sell value at end',
+            'of round, sells at {C:money}#3#x{}',
+            'if {C:money}money{} is under {C:money}$1{}',
+            '{C:inactive}(Starts at $0){}'
 
+        }
+    },
+    config = { extra = { sell_inc = 1, value = 0 , sell_mult = 4} },
+    loc_vars = function(self, info_queue, card)
+        return {
+            vars = {
+                card.ability.extra.sell_inc, card.ability.extra.value, card.ability.extra.sell_mult
+            } 
+        }
+    end,
+    calculate = function(self,card,context)
+        if context.end_of_round and context.cardarea == G.jokers and not context.blueprint then
+            card.ability.extra.value = card.ability.extra.value + card.ability.extra.sell_inc
+            card.ability.extra_value = card.ability.extra_value + card.ability.extra.sell_inc
+            card:set_cost()
+            return {   
+                message = "Upgrade",
+                colour = G.C.MONEY,
+                card = card,
+            }
+        end
+        if context.selling_self then
+            if G.GAME.dollars < 1 then
+                G.GAME.dollars = (card.ability.extra.sell_mult - 1) * card.ability.extra.value + G.GAME.dollars
+                return {
+                    message = "4x!",
+                    colour = G.C.MONEY,
+                    card = card,
+                }
+            else
+                return {
+                    message = "1x",
+                    colour = G.C.MONEY,
+                    card = card,
+                }
+            end
+        end
+        return nil
+    end,
+    add_to_deck = function(self,card,from_debuff)
+        card.ability.extra_value = -card.sell_cost
+        card:set_cost(-card.sell_cost)
+    end
+}
 
 if JokerDisplay then 
     local jd_def = JokerDisplay.Definitions
@@ -468,7 +530,7 @@ if JokerDisplay then
                         elseif scoring_card.facing and not (scoring_card.facing == 'back') and scoring_card:get_id() == 7 and d then
                             count = count + (11 * JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand))
                             d = false
-                    
+                            JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
                         end
                     end 
                 end
