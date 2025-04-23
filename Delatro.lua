@@ -371,7 +371,7 @@ SMODS.Joker{
     atlas = 'Delatro1',
     pos = {x=3,y=1},
     cost = 4,
-    blueprint_compat = true,
+    blueprint_compat = false,
     eternal_compat = true,
     unlocked = true,
     discovered = true,
@@ -379,53 +379,99 @@ SMODS.Joker{
         name = 'Consolidation',
         text = {
             '{C:money}+$#1#{} sell value at end',
-            'of round, sells at {C:money}#3#x{}',
+            'of round, sells at {C:money}#2#x{}',
             'if {C:money}money{} is under {C:money}$1{}',
             '{C:inactive}(Starts at $0){}'
 
         }
     },
-    config = { extra = { sell_inc = 1, value = 0 , sell_mult = 4} },
+    config = { extra = { sell_inc = 1, sell_mult = 4, juiced = false} },
     loc_vars = function(self, info_queue, card)
         return {
             vars = {
-                card.ability.extra.sell_inc, card.ability.extra.value, card.ability.extra.sell_mult
+                card.ability.extra.sell_inc, card.ability.extra.sell_mult, card.ability.extra.juiced
             } 
         }
     end,
     calculate = function(self,card,context)
-        if context.end_of_round and context.cardarea == G.jokers and not context.blueprint then
-            card.ability.extra.value = card.ability.extra.value + card.ability.extra.sell_inc
-            card.ability.extra_value = card.ability.extra_value + card.ability.extra.sell_inc
-            card:set_cost()
-            return {   
-                message = "Upgrade",
-                colour = G.C.MONEY,
-                card = card,
-            }
-        end
-        if context.selling_self then
-            if G.GAME.dollars < 1 then
-                G.GAME.dollars = (card.ability.extra.sell_mult - 1) * card.ability.extra.value + G.GAME.dollars
-                return {
-                    message = "4x!",
-                    colour = G.C.MONEY,
-                    card = card,
-                }
-            else
-                return {
-                    message = "1x",
+        if not context.blueprint then 
+            if context.end_of_round and context.cardarea == G.jokers then
+                card.ability.extra_value = card.ability.extra_value + card.ability.extra.sell_inc
+                card:set_cost()
+                return {   
+                    message = "Upgrade",
                     colour = G.C.MONEY,
                     card = card,
                 }
             end
+            if context.selling_self  then
+                if G.GAME.dollars < 1 then
+                    G.GAME.dollars = (card.ability.extra.sell_mult - 1) * card.sell_cost + G.GAME.dollars
+                    return {
+                        message = "4x!",
+                        colour = G.C.MONEY,
+                        card = card,
+                    }
+                else
+                    return {
+                        message = "1x",
+                        colour = G.C.MONEY,
+                        card = card,
+                    }
+                end
+            end
         end
-        return nil
     end,
     add_to_deck = function(self,card,from_debuff)
         card.ability.extra_value = -card.sell_cost
         card:set_cost(-card.sell_cost)
     end
+}
+SMODS.Joker{
+    name = 'Divine Order',
+    key = 'divine_order',
+    rarity = 3,
+    atlas = 'Delatro1',
+    pos = {x=4,y=1},
+    cost = 9,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = 'Divine Order',
+        text = {
+            'Creates a copy of {C:attention}1{} ',
+            'random {C:attention}consumable{} card',
+            'in your possession if',
+            '{C:attention}scored hand{} contains three {C:attention}7s{}',
+        }
+    },
+    config = { extra = { count = 0} },
+    calculate = function(self,card,context)
+        if context.before then
+            for _, scoring_card in pairs(G.play.cards) do
+                if scoring_card:get_id() == 7 then
+                    card.ability.extra.count = card.ability.extra.count + 1
+                end
+            end
+            if card.ability.extra.count >= 3 and #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit then
+                G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
+                G.E_MANAGER:add_event(Event({
+                    trigger = 'before',
+                    delay = 0.0,
+                    func = function()
+                        local card = copy_card(pseudorandom_element(G.consumeables.cards, pseudoseed('divine_order')), nil)
+                        card:add_to_deck()
+                        G.consumeables:emplace(card)
+                        return true
+                    end,
+                }))
+                card_eval_status_text(context.blueprint_card or card, 'extra', nil, nil, nil,{ message = localize('k_duplicated_ex') })
+            end
+            card.ability.extra.count = 0
+        end
+    end   
 }
 
 if JokerDisplay then 
@@ -601,5 +647,32 @@ if JokerDisplay then
             card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { (G.GAME and G.GAME.probabilities.normal or 1), card.ability.extra.odds } }
         end
     }
-
+    jd_def['j_delatro_consolidation'] = {
+        text = {
+            {ref_table = "card.joker_display_values", ref_value = "selling_at"},
+            {ref_table = "card.joker_display_values", ref_value = "sell_cost", colour = G.C.GOLD }    
+        },
+        text_config = { scale = 0.35 },
+        reminder_text = {
+            { text = "("},
+            { text = "$", colour = G.C.GOLD },
+            { ref_table = "card", ref_value = "sell_cost", colour = G.C.GOLD },
+            { text = ")" },
+        },
+        reminder_text_config = { scale = 0.35 },
+        calc_function = function(card)
+            if G.GAME.dollars < 1 then
+                card.joker_display_values.sell_cost = "$" .. card.sell_cost * 4
+                card.joker_display_values.selling_at ="Selling at "
+            else
+                card.joker_display_values.sell_cost = ""
+                card.joker_display_values.selling_at = ""
+            end
+        end
+    }
+    jd_def['j_delatro_divine_order'] = {
+        reminder_text = {
+            { text = "(7)" },
+        },
+    }
 end
