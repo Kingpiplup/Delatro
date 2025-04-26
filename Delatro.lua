@@ -473,6 +473,105 @@ SMODS.Joker{
         end
     end   
 }
+SMODS.Joker{
+    name = 'Heap Leaching',
+    key = 'heap_leaching',
+    rarity = 2,
+    atlas = 'Delatro1',
+    pos = {x=0,y=2},
+    cost = 8,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    enhancement_gate = 'm_stone',
+    loc_txt = {
+        name = 'Heap Leaching',
+        text = {
+            'Scored {C:attention}stone{} cards have a {C:green}#5# in #3#{} chance',
+            '{C:attention}1 in #1#{} chance to be destroyed, if destroyed',
+            'each{C:attention}1 in #2#{} chance to',
+            'increase {C:money}gold{} card payout by {C:money}+$#3#{}'
+            --Scored stone cards have a 1 in 5 chance to be destroyed, if destroyed 1 in 4 chance to increase gold card payout by +$1
+        }
+    },
+    config = { extra = { inc = 1 , total = 0, break_odds = 5, leach_odds = 4, gold = 'm_gold'} },
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue+1] = G.P_CENTERS.m_stone
+        info_queue[#info_queue+1] = G.P_CENTERS.m_gold
+        return {
+            vars = {
+                card.ability.extra.inc, card.ability.extra.total, card.ability.extra.break_odds, card.ability.extra.leach_odds, (G.GAME.probabilities.normal or 1)
+                } 
+            }
+    end,
+    calculate = function(self,card,context)
+        if context.cardarea == G.play then
+            if context.other_card then
+                if pseudorandom('heap_leaching') < G.GAME.probabilities.normal/card.ability.extra.break_odds and 
+                SMODS.has_enhancement(context.other_card, "m_stone") and context.individual  then
+                    context.other_card.marked_for_death = true
+                    if pseudorandom('heap_leaching2') < G.GAME.probabilities.normal/card.ability.extra.leach_odds then
+                        card.ability.extra.total = card.ability.extra.total + card.ability.extra.inc
+                        if G.GAME.delatro_bonuses.delatro_gold_bonus == nil then
+                            G.GAME.delatro_bonuses.delatro_gold_bonus = 3
+                        end
+                        G.GAME.delatro_bonuses.delatro_gold_bonus = G.GAME.delatro_bonuses.delatro_gold_bonus + card.ability.extra.inc
+                        G.P_CENTERS['m_gold'].config.h_dollars = G.GAME.delatro_bonuses.delatro_gold_bonus
+                        for k, v in pairs(G.playing_cards) do
+                            if v.config.center == G.P_CENTERS['m_gold'] then
+                                v.ability.h_dollars =  G.GAME.delatro_bonuses.delatro_gold_bonus
+                            end
+                        end
+                        
+                        return {
+                            message = 'Leached',
+                            colour = G.C.MONEY,
+                            card = context.other_card,
+                        }
+                    end
+                end
+            end
+            if context.destroy_card and context.destroy_card.marked_for_death then
+                return {
+                    remove = true
+                }
+            end
+        end
+    end
+}
+
+--hook to make sure the game object is initialized with the delatro bonuses table
+local IGO = Game.init_game_object
+function Game.init_game_object(self)
+    local ret = IGO(self)
+    if ret.delatro_bonuses == nil then
+        ret.delatro_bonuses = {}
+    end
+    return ret
+end
+-- hook to load the bonuses on run start or run continue
+local SR = Game.start_run
+function Game.start_run(self, args)
+    local ret = SR(self, args)
+    if G.GAME.delatro_bonuses and G.GAME.delatro_bonuses.delatro_gold_bonus then
+        G.P_CENTERS['m_gold'].config.h_dollars = G.GAME.delatro_bonuses.delatro_gold_bonus
+    end
+    return ret
+end
+
+
+SMODS.Enhancement:take_ownership('gold',{
+    config = {extra = { h_dollars = 3 } },
+        calculate = function(self, card, context)
+             if context.cardarea == G.hand and context.individual and context.end_of_round and G.GAME.delatro_gold_bonus then
+                return {
+                    dollars = (card.ability.h_dollars or card.ability.h_dollars + G.GAME.delatro_gold_bonus) ,
+                }
+            end
+        end        
+    }
+)
 
 if JokerDisplay then 
     local jd_def = JokerDisplay.Definitions
@@ -676,3 +775,4 @@ if JokerDisplay then
         },
     }
 end
+
