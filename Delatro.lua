@@ -463,6 +463,7 @@ SMODS.Joker{
                     func = function()
                         local card = copy_card(pseudorandom_element(G.consumeables.cards, pseudoseed('divine_order')), nil)
                         card:add_to_deck()
+                        card:juice_up()
                         G.consumeables:emplace(card)
                         return true
                     end,
@@ -488,14 +489,14 @@ SMODS.Joker{
     loc_txt = {
         name = 'Heap Leaching',
         text = {
-            'Scored {C:attention}stone{} cards have a {C:green}#5# in #3#{} chance',
-            '{C:attention}1 in #1#{} chance to be destroyed, if destroyed',
-            'each{C:attention}1 in #2#{} chance to',
-            'increase {C:money}gold{} card payout by {C:money}+$#3#{}'
-            --Scored stone cards have a 1 in 5 chance to be destroyed, if destroyed 1 in 4 chance to increase gold card payout by +$1
+            'Scored {C:attention}Stone Cards{} have a {C:red}#5# in #3#{} chance',
+            'to be destroyed. If destroyed: {C:green}#5# in #4#{}',
+            'chance to increase {C:attention}Gold Card{}',
+            'payout by {C:money}+$#1#{}'
+            --Scored stone cards have a 1 in 5 chance to be destroyed, if destroyed: 1 in 4 chance to increase gold card payout by +$1
         }
     },
-    config = { extra = { inc = 1 , total = 0, break_odds = 5, leach_odds = 4, gold = 'm_gold'} },
+    config = { extra = { inc = 1 , total = 0, break_odds = 5, leach_odds = 3} },
     loc_vars = function(self, info_queue, card)
         info_queue[#info_queue+1] = G.P_CENTERS.m_stone
         info_queue[#info_queue+1] = G.P_CENTERS.m_gold
@@ -523,13 +524,90 @@ SMODS.Joker{
                                 v.ability.h_dollars =  G.GAME.delatro_bonuses.delatro_gold_bonus
                             end
                         end
-                        
+                        G.E_MANAGER:add_event(Event({func = function() card:juice_up() return true end}))
                         return {
                             message = 'Leached',
                             colour = G.C.MONEY,
                             card = context.other_card,
                         }
                     end
+                    return {
+                        message = 'Broken',
+                        colour = G.C.RED,
+                        card = context.other_card,
+                    }
+                end
+            end
+            if context.destroy_card and context.destroy_card.marked_for_death then
+                return {
+                    remove = true
+                }
+            end
+        end
+    end
+}
+SMODS.Joker{
+    name = 'Stone Slag',
+    key = 'stone_slag',
+    rarity = 2,
+    atlas = 'Delatro1',
+    pos = {x=1,y=2},
+    cost = 8,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    enhancement_gate = 'm_stone',
+    loc_txt = {
+        name = 'Stone Slag',
+        text = {
+            'Scored {C:attention}Stone Cards{} have a {C:green}#5# in #3#{} chance',
+            'to be destroyed. If destroyed: {C:green}#5# in #4#{}',
+            'chance to increase {C:attention}Steel Card{}',
+            'Mult by {X:mult,C:white}X#1#{} Mult'
+            --Scored stone cards have a 1 in 5 chance to be destroyed, if destroyed 1 in 4 chance to increase gold card payout by +$1
+        }
+    },
+    config = { extra = { inc = 0.1 , total = 0, break_odds = 3, slag_odds = 5} },
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue+1] = G.P_CENTERS.m_stone
+        info_queue[#info_queue+1] = G.P_CENTERS.m_steel
+        return {
+            vars = {
+                card.ability.extra.inc, card.ability.extra.total, card.ability.extra.break_odds, card.ability.extra.slag_odds, (G.GAME.probabilities.normal or 1)
+                } 
+            }
+    end,
+    calculate = function(self,card,context)
+        if context.cardarea == G.play then
+            if context.other_card then
+                if pseudorandom('stone_slag') < G.GAME.probabilities.normal/card.ability.extra.break_odds and 
+                SMODS.has_enhancement(context.other_card, "m_stone") and context.individual  then
+                    context.other_card.marked_for_death = true
+                    if pseudorandom('stone_slag2') < G.GAME.probabilities.normal/card.ability.extra.slag_odds then
+                        card.ability.extra.total = card.ability.extra.total + card.ability.extra.inc
+                        if G.GAME.delatro_bonuses.delatro_steel_bonus == nil then
+                            G.GAME.delatro_bonuses.delatro_steel_bonus = 1.5
+                        end
+                        G.GAME.delatro_bonuses.delatro_steel_bonus = G.GAME.delatro_bonuses.delatro_steel_bonus + card.ability.extra.inc
+                        G.P_CENTERS['m_steel'].config.h_x_mult = G.GAME.delatro_bonuses.delatro_steel_bonus
+                        for k, v in pairs(G.playing_cards) do
+                            if v.config.center == G.P_CENTERS['m_steel'] then
+                                v.ability.h_x_mult =  G.GAME.delatro_bonuses.delatro_steel_bonus
+                            end
+                        end
+                        G.E_MANAGER:add_event(Event({func = function() card:juice_up() return true end}))
+                        return {
+                            message = 'Slag',
+                            colour = G.C.MONEY,
+                            card = context.other_card,
+                        }
+                    end
+                    return {
+                        message = 'Broken',
+                        colour = G.C.RED,
+                        card = context.other_card,
+                    }
                 end
             end
             if context.destroy_card and context.destroy_card.marked_for_death then
@@ -554,13 +632,19 @@ end
 local SR = Game.start_run
 function Game.start_run(self, args)
     local ret = SR(self, args)
-    if G.GAME.delatro_bonuses and G.GAME.delatro_bonuses.delatro_gold_bonus then
-        G.P_CENTERS['m_gold'].config.h_dollars = G.GAME.delatro_bonuses.delatro_gold_bonus
+    if G.GAME.delatro_bonuses then
+        if G.GAME.delatro_bonuses.delatro_gold_bonus then
+            G.P_CENTERS['m_gold'].config.h_dollars = G.GAME.delatro_bonuses.delatro_gold_bonus
+        end
+        if G.GAME.delatro_bonuses.delatro_steel_bonus then
+            G.P_CENTERS['m_steel'].config.h_x_mult = G.GAME.delatro_bonuses.delatro_steel_bonus
+        end
     end
     return ret
 end
 
-
+--[[
+-- This is a test of the take_ownership function
 SMODS.Enhancement:take_ownership('gold',{
     config = {extra = { h_dollars = 3 } },
         calculate = function(self, card, context)
@@ -571,7 +655,7 @@ SMODS.Enhancement:take_ownership('gold',{
             end
         end        
     }
-)
+)]]
 
 if JokerDisplay then 
     local jd_def = JokerDisplay.Definitions
@@ -591,7 +675,7 @@ if JokerDisplay then
     }
     jd_def['j_delatro_bonus_joker'] = {
         text = {
-            { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "" },
+            { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "mult" },
             { text = "x",                              scale = 0.35 },
             { text = "$",                              colour = G.C.GOLD },
             { ref_table = "card.ability.extra",        ref_value = "income", colour = G.C.GOLD },
@@ -618,7 +702,7 @@ if JokerDisplay then
                 end
             end
             card.joker_display_values.count = count
-            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { (G.GAME and G.GAME.probabilities.normal or 1), card.ability.extra.odds } }
+            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { math.min(G.GAME and G.GAME.probabilities.normal or 1, card.ability.extra.odds), card.ability.extra.odds } }
             card.joker_display_values.localized_text = "(" .. localize("k_round") .. ")"
         end
     }
@@ -743,7 +827,7 @@ if JokerDisplay then
                 end
             end
             card.joker_display_values.count = count
-            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { (G.GAME and G.GAME.probabilities.normal or 1), card.ability.extra.odds } }
+            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { math.min(G.GAME and G.GAME.probabilities.normal or 1, card.ability.extra.odds), card.ability.extra.odds } }
         end
     }
     jd_def['j_delatro_consolidation'] = {
@@ -774,5 +858,104 @@ if JokerDisplay then
             { text = "(7)" },
         },
     }
+    jd_def['j_delatro_heap_leaching'] = {
+        text = {
+            { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "mult" },
+            { text = "x",                              scale = 0.35 },
+            { text = "$",                              colour = G.C.GOLD },
+            { ref_table = "card.ability.extra",        ref_value = "inc", colour = G.C.GOLD },
+        },
+        extra = {
+            {
+                { text = "(" },
+                { ref_table = "card.joker_display_values", ref_value = "leach_odds" },
+                { text = ")" }
+            },
+            {
+                { text = "(" ,colour = G.C.RED},
+                { ref_table = "card.joker_display_values", ref_value = "break_odds" ,colour = G.C.RED},
+                { text = ")" ,colour = G.C.RED},
+            },
+        },
+        extra_config = { colour = G.C.GREEN, scale = 0.3 },
+        reminder_text = {
+            { text = "(Leach: " },
+            { ref_table = "card.joker_display_values", ref_value = "odds"},
+            { text = ")" },
+
+        },
+        calc_function = function(card)
+            local text, _, scoring_hand = JokerDisplay.evaluate_hand()
+            local count = 0
+            if text ~= 'Unknown' then
+                for _, scoring_card in pairs(scoring_hand) do
+                    if scoring_hand or scoring_card.highlighted then
+                        if scoring_card.facing and not (scoring_card.facing == 'back') and SMODS.has_enhancement(scoring_card, 'm_stone') then
+                            count = count + (JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand))
+                            JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
+                        end
+                    end 
+                end
+            end
+            local minBO = math.min(G.GAME and G.GAME.probabilities.normal or 1, card.ability.extra.break_odds)
+            local minLO = math.min(G.GAME and G.GAME.probabilities.normal or 1, card.ability.extra.leach_odds)
+            card.joker_display_values.count = count
+            card.joker_display_values.break_odds = localize { type = 'variable', key = "jdis_odds", vars = { minBO, card.ability.extra.break_odds } }
+            card.joker_display_values.leach_odds = localize { type = 'variable', key = "jdis_odds", vars = { minLO, card.ability.extra.leach_odds } }
+            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = {(minBO * minLO), (card.ability.extra.break_odds * card.ability.extra.leach_odds)}}
+        end
+    }
+    jd_def['j_delatro_stone_slag'] = {
+        text = {
+            { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "mult" },
+            { text = "x",                              scale = 0.35 },
+            { 
+                border_nodes = {
+                    { text = "X" },
+                    { ref_table = "card.ability.extra", ref_value = "inc" }
+                }
+            },
+        },
+        extra = {
+            {
+                { text = "(" },
+                { ref_table = "card.joker_display_values", ref_value = "slag_odds" },
+                { text = ")" }
+            },
+            {
+                { text = "(" ,colour = G.C.RED},
+                { ref_table = "card.joker_display_values", ref_value = "break_odds" ,colour = G.C.RED},
+                { text = ")" ,colour = G.C.RED},
+            },
+        },
+        extra_config = { colour = G.C.GREEN, scale = 0.3 },
+        reminder_text = {
+            { text = "(Slag: " },
+            { ref_table = "card.joker_display_values", ref_value = "odds"},
+            { text = ")" },
+
+        },
+        calc_function = function(card)
+            local text, _, scoring_hand = JokerDisplay.evaluate_hand()
+            local count = 0
+            if text ~= 'Unknown' then
+                for _, scoring_card in pairs(scoring_hand) do
+                    if scoring_hand or scoring_card.highlighted then
+                        if scoring_card.facing and not (scoring_card.facing == 'back') and SMODS.has_enhancement(scoring_card, 'm_stone') then
+                            count = count + (JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand))
+                            JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
+                        end
+                    end 
+                end
+            end
+            local minBO = math.min(G.GAME and G.GAME.probabilities.normal or 1, card.ability.extra.break_odds)
+            local minSO = math.min(G.GAME and G.GAME.probabilities.normal or 1, card.ability.extra.slag_odds)
+            card.joker_display_values.count = count
+            card.joker_display_values.break_odds = localize { type = 'variable', key = "jdis_odds", vars = { minBO, card.ability.extra.break_odds } }
+            card.joker_display_values.slag_odds = localize { type = 'variable', key = "jdis_odds", vars = { minSO, card.ability.extra.slag_odds } }
+            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = {(minBO * minSO), (card.ability.extra.break_odds * card.ability.extra.slag_odds)}}
+        end
+    }            
 end
+
 
