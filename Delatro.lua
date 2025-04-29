@@ -721,7 +721,7 @@ SMODS.Joker{ -- Paycheck
                 }
             end
             for _, scoring_card in pairs(G.play.cards) do
-                if scoring_card:get_id() == 7 and not context.scoring_card.debuff then
+                if scoring_card:get_id() == 7 and not scoring_card.debuff then
                     c.c_up_hands = c.c_up_hands + 1
                     if c.c_up_hands == c.up_hands then
                         c.c_up_hands = 0
@@ -744,6 +744,49 @@ SMODS.Joker{ -- Paycheck
         end
     end
 } 
+SMODS.Joker{ -- Red Joker
+    name = 'Red Joker',
+    key = 'red_joker',
+    rarity = 1,
+    atlas = 'Delatro1',
+    pos = {x=4,y=2},
+    cost = 6,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = 'Red Joker',
+        text = {
+            '{C:red}+#1#{} Mult for each',
+            'card {C:attention}drawn{} to hand',
+            '{C:inactive}(Currently {C:red}+#2#{C:inactive} Mult){}'
+        }
+    },
+    config = { extra = { mult_per_draw = 1, mult = 0, max_deck = (G.deck and G.deck.cards and #G.deck.cards) or 52 } },
+    loc_vars = function(self, info_queue, card)
+        return {
+            vars = {
+                card.ability.extra.mult_per_draw, card.ability.extra.mult
+            } 
+        }
+    end,
+    calculate = function(self,card,context)
+        if context.start_of_round then
+            card.ability.extra.max_deck = (G.deck and G.deck.cards and #G.deck.cards) or 52
+        elseif context.end_of_round then
+            card.ability.extra.mult = 0
+        elseif context.hand_drawn and G.deck and G.deck.cards and #G.deck.cards > 0 then
+            card.ability.extra.mult = card.ability.extra.mult_per_draw * (card.ability.extra.max_deck - #G.deck.cards)
+        elseif context.joker_main then
+            return{
+                mult = card.ability.extra.mult,
+                colour = G.C.RED,
+                card = card,
+            } 
+        end
+    end
+}
 
 
 --hook to make sure the game object is initialized with the delatro bonuses table
@@ -1143,6 +1186,13 @@ if JokerDisplay then
                 card.joker_display_values.active = ""
             end
         end
+    }
+    jd_def['j_delatro_red_joker'] = {
+        text = {
+            { text = "+" },
+            { ref_table = "card.ability.extra", ref_value = "mult", retrigger_type = "mult" },
+        },
+        text_config = { colour = G.C.MULT },
     }
 end
 
