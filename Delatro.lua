@@ -5,7 +5,7 @@ local mod = SMODS.current_mod
 
 SMODS.Atlas {key = 'Delatro1',path = 'Delatro1Sprites.png',px =71,py = 95}
 
-SMODS.Joker{
+SMODS.Joker{ -- Jambo 
     name = "Jambo", --for testing
     key = 'jambo',
     rarity = 1,
@@ -40,7 +40,7 @@ SMODS.Joker{
         return nil
     end
 }
-SMODS.Joker{
+SMODS.Joker{ -- Raise
     name = "Raise", 
     key = 'raise',
     rarity = 1,
@@ -83,7 +83,7 @@ SMODS.Joker{
         end
     end
 }
-SMODS.Joker{
+SMODS.Joker{ -- Mult
     name = "Mult Joker", 
     key = 'mult_joker',
     rarity = 1,
@@ -126,7 +126,7 @@ SMODS.Joker{
         end      
     end
 }
-SMODS.Joker{
+SMODS.Joker{ -- Bonus
     name = "Bonus Joker",
     key = 'bonus_joker',
     rarity = 1,
@@ -173,7 +173,7 @@ SMODS.Joker{
         end
     end
 }    
-SMODS.Joker{
+SMODS.Joker{ -- Dance Recital
     name = 'Dance Recital',
     key = 'dance_recital',
     rarity = 2,
@@ -222,7 +222,7 @@ SMODS.Joker{
         end
     end
 }
-SMODS.Joker{
+SMODS.Joker{ -- Prime Time
     name = 'Prime Time',
     key = 'prime_time',
     rarity = 1, 
@@ -237,14 +237,14 @@ SMODS.Joker{
         name = 'Prime Time',
         text = {
             'Each {C:attention}Unique{} scored',
-            '{C:attention}Prime Number{} gives',
-            '{C:mult}+Next Prime Number{} Mult',
-            '{C:inactive}(2,3,5,7){}'
+            '{C:attention}2{}, {C:attention}3{}, {C:attention}5{}, or {C:attention}7{} gives',
+            '{C:mult}+3{}, {C:mult}+5{}, {C:mult}+7{} or {C:mult}+11{}',
+            'Mult respectivly',
         }
     },
     config = { extra = { twof = true, threef = true, fivef = true, sevenf = true }},
     calculate = function(self, card, context)
-        if context.cardarea == G.play and context.individual then
+        if context.cardarea == G.play and context.individual or context.repetition and not context.repetition_only then
             if context.other_card:get_id() == 2 and card.ability.extra.twof then
                 card.ability.extra.twof = false
                 return{
@@ -284,7 +284,7 @@ SMODS.Joker{
         end
     end
 }
-SMODS.Joker{
+SMODS.Joker{ -- Top 10
     name = 'Top 10',
     key = 'top_10',
     rarity = 1,
@@ -323,7 +323,7 @@ SMODS.Joker{
     end
     
 }
-SMODS.Joker{
+SMODS.Joker{ -- 7 Iris
     name = '7 Iris',
     key = '7_iris',
     rarity = 2,
@@ -338,7 +338,7 @@ SMODS.Joker{
         name = '7 Iris',
         text = {
             'Each played {C:attention}7{} has a',
-            '{C:green}#1# in #2# {} chance to',
+            '{C:green}#1# in #2#{} chance to',
             'level up played hand'
         }
     },
@@ -364,7 +364,7 @@ SMODS.Joker{
         end
     end
 }
-SMODS.Joker{
+SMODS.Joker{ -- Consolidation
     name = 'Consolidation',
     key = 'consolidation',
     rarity = 1,
@@ -378,35 +378,39 @@ SMODS.Joker{
     loc_txt = {
         name = 'Consolidation',
         text = {
-            '{C:money}+$#1#{} sell value at end',
-            'of round, sells at {C:money}#2#x{}',
-            'if {C:money}money{} is under {C:money}$1{}',
+            '{C:money}+$#1#{} sell value at end of',
+            'round, sells at {C:money}#2#x{} if',
+            '{C:money}money{} is under {C:money}$1{}',
             '{C:inactive}(Starts at $0){}'
 
         }
     },
-    config = { extra = { sell_inc = 1, sell_mult = 4, juiced = false} },
+    config = { extra = { sell_inc = 1, sell_mult = 4, val = 0} },
     loc_vars = function(self, info_queue, card)
         return {
             vars = {
-                card.ability.extra.sell_inc, card.ability.extra.sell_mult, card.ability.extra.juiced
+                card.ability.extra.sell_inc, card.ability.extra.sell_mult, card.ability.extra.val
             } 
         }
     end,
     calculate = function(self,card,context)
         if not context.blueprint then 
             if context.end_of_round and context.cardarea == G.jokers then
-                card.ability.extra_value = card.ability.extra_value + card.ability.extra.sell_inc
-                card:set_cost()
+                card.ability.extra.val  = card.sell_cost
+                card.ability.extra.val = card.ability.extra.val + card.ability.extra.sell_inc
+                if G.GAME.dollars >= 1 then
+                    card.sell_cost = card.ability.extra.val
+                else
+                    card.sell_cost =  card.ability.extra.val * card.ability.extra.sell_mult 
+                end
                 return {   
                     message = "Upgrade",
                     colour = G.C.MONEY,
                     card = card,
                 }
             end
-            if context.selling_self  then
+            if context.selling_self then
                 if G.GAME.dollars < 1 then
-                    G.GAME.dollars = (card.ability.extra.sell_mult - 1) * card.sell_cost + G.GAME.dollars
                     return {
                         message = "4x!",
                         colour = G.C.MONEY,
@@ -420,6 +424,17 @@ SMODS.Joker{
                     }
                 end
             end
+            if context.delatro_ease_dollars then
+                if G.GAME.dollars + context.delatro_ease_dollars < 1 then
+                    if context.delatro_ease_dollars < 0 then
+                        card.sell_cost = card.ability.extra.val * card.ability.extra.sell_mult
+                    end
+                else
+                    if context.delatro_ease_dollars > 0 then
+                        card.sell_cost = card.ability.extra.val
+                    end    
+                end
+            end
         end
     end,
     add_to_deck = function(self,card,from_debuff)
@@ -427,7 +442,7 @@ SMODS.Joker{
         card:set_cost(-card.sell_cost)
     end
 }
-SMODS.Joker{
+SMODS.Joker{ -- Divine Order
     name = 'Divine Order',
     key = 'divine_order',
     rarity = 3,
@@ -441,10 +456,10 @@ SMODS.Joker{
     loc_txt = {
         name = 'Divine Order',
         text = {
-            'Creates a copy of {C:attention}1{} ',
-            'random {C:attention}consumable{} card',
-            'in your possession if',
-            '{C:attention}scored hand{} contains three {C:attention}7s{}',
+            'Creates a copy of {C:attention}1{} random',
+            '{C:attention}consumable{} card in your',
+            'possession if{C:attention} scoring hand{}',
+            'contains three {C:attention}7s{}',
         }
     },
     config = { extra = { count = 0} },
@@ -474,7 +489,7 @@ SMODS.Joker{
         end
     end   
 }
-SMODS.Joker{
+SMODS.Joker{ -- Heap Leaching
     name = 'Heap Leaching',
     key = 'heap_leaching',
     rarity = 2,
@@ -496,7 +511,7 @@ SMODS.Joker{
             --Scored stone cards have a 1 in 5 chance to be destroyed, if destroyed: 1 in 4 chance to increase gold card payout by +$1
         }
     },
-    config = { extra = { inc = 1 , total = 0, break_odds = 5, leach_odds = 3} },
+    config = { extra = { inc = 1 , total = 0, break_odds = 3, leach_odds = 5} },
     loc_vars = function(self, info_queue, card)
         info_queue[#info_queue+1] = G.P_CENTERS.m_stone
         info_queue[#info_queue+1] = G.P_CENTERS.m_gold
@@ -546,7 +561,7 @@ SMODS.Joker{
         end
     end
 }
-SMODS.Joker{
+SMODS.Joker{ -- Stone Slag
     name = 'Stone Slag',
     key = 'stone_slag',
     rarity = 2,
@@ -561,7 +576,7 @@ SMODS.Joker{
     loc_txt = {
         name = 'Stone Slag',
         text = {
-            'Scored {C:attention}Stone Cards{} have a {C:green}#5# in #3#{} chance',
+            'Scored {C:attention}Stone Cards{} have a {C:red}#5# in #3#{} chance',
             'to be destroyed. If destroyed: {C:green}#5# in #4#{}',
             'chance to increase {C:attention}Steel Card{}',
             'Mult by {X:mult,C:white}X#1#{} Mult'
@@ -618,6 +633,118 @@ SMODS.Joker{
         end
     end
 }
+SMODS.Joker{ -- Rebound Funds
+    name = 'Rebound Funds',
+    key = 'rebound_funds',
+    rarity = 2,
+    atlas = 'Delatro1',
+    pos = {x=2,y=2},
+    cost = 5,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = 'Rebound Funds',
+        text = {
+            'While at or below {C:money}$#1#{}',
+            'all income is {C:attention}doubled{}',
+            '{C:inactive}(Cannot Stack){}'
+        }
+    },
+    config = { extra = { thresh = 0, a = true, first = false} },
+    loc_vars = function(self, info_queue, card)
+        return { vars = {card.ability.extra.thresh} }
+    end,
+    calculate = function(self,card,context)
+        local temp = {}
+        for i = 1, #G.jokers.cards do
+            if G.jokers.cards[i].config.center.key == card.config.center.key then
+                temp[#temp + 1] = G.jokers.cards[i]
+            end
+        end 
+        for i = 1, #temp do
+            temp[i].ability.extra.first = (i == 1)
+        end
+        if G.GAME.dollars <= card.ability.extra.thresh then
+            if context.delatro_ease_dollars and not context.blueprint then
+                if context.delatro_ease_dollars > 0 and a and card.ability.extra.first then
+                    a = false
+                    ease_dollars(context.delatro_ease_dollars)
+                    return {
+                        message = "2x",
+                        colour = G.C.MONEY,
+                        card = card,
+                    }
+                end
+            end
+        end
+        a = true
+    end
+}
+SMODS.Joker{ -- Paycheck
+    name = 'Paycheck',
+    key = 'paycheck',
+    rarity = 2,
+    atlas = 'Delatro1',
+    pos = {x=3,y=2},
+    cost = 5,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = 'Paycheck',
+        text = {
+            '{C:money}+$#2#{} every {C:attention}#1#{}{C:inactive} (#3#){} hands played,',
+            'increases by {C:money}$#4#{} every {C:attention}#5#{}{C:inactive} (#6#){}',
+            'hands scoring a {C:attention}7{}',
+        }
+    },
+    config = {extra = {hands_total = 14, payout = 10, c_hands = 0, payout_inc = 5, up_hands = 7, c_up_hands = 0}},
+    loc_vars = function(self, info_queue, card)
+        local c = card.ability.extra
+        return { vars = {c.hands_total, c.payout, c.c_hands, c.payout_inc, c.up_hands, c.c_up_hands }}
+    end,
+    calculate = function(self,card,context)
+        local c = card.ability.extra
+        local bool = false
+        if context.before then
+            c.c_hands = c.c_hands + 1
+            if c.c_hands == c.hands_total then
+                c.c_hands = 0
+                return{
+                    dollars = c.payout,
+                    message = "Paycheck!",
+                    colour = G.C.MONEY,
+                    card = card,
+                }
+            end
+            for _, scoring_card in pairs(G.play.cards) do
+                if scoring_card:get_id() == 7 and not context.scoring_card.debuff then
+                    c.c_up_hands = c.c_up_hands + 1
+                    if c.c_up_hands == c.up_hands then
+                        c.c_up_hands = 0
+                        c.payout = c.payout + c.payout_inc
+                        return {
+                            message = "Pay Raise",
+                            colour = G.C.MONEY,
+                            card = card,
+                        }
+                    else
+                        return {
+                            message = "Work Day",
+                            colour = G.C.FILTER,
+                            card = card,
+                        }
+                    end
+                    break
+                end
+            end
+        end
+    end
+} 
+
 
 --hook to make sure the game object is initialized with the delatro bonuses table
 local IGO = Game.init_game_object
@@ -642,6 +769,14 @@ function Game.start_run(self, args)
     end
     return ret
 end
+--hook to ease_dollars to get when dollars are altered
+local ED = ease_dollars
+function ease_dollars(mod, x)
+    ED(mod, x)
+    for i = 1, #G.jokers.cards do
+        local effects = G.jokers.cards[i]:calculate_joker({ delatro_ease_dollars = mod})
+    end
+end
 
 --[[
 -- This is a test of the take_ownership function
@@ -656,6 +791,46 @@ SMODS.Enhancement:take_ownership('gold',{
         end        
     }
 )]]
+
+--[[
+function loc_colour(_c,_default)
+    G.ARGS.LOC_COLOURS = G.ARGS.LOCS_COLOURS or {
+        red = G.C.RED,
+        mult = G.C.MULT,
+        blue = G.C.BLUE,
+        chips = G.C.CHIPS,
+        green = G.C.GREEN,
+        money = G.C.MONEY,
+        gold = G.C.GOLD,
+        attention = G.C.FILTER,
+        purple = G.C.PURPLE,
+        white = G.C.WHITE,
+        inactive = G.C.UI.TEXT_INACTIVE,
+        spades = G.C.SUITS.SPADES,
+        hearts = G.C.SUITS.HEARTS,
+        clubs = G.C.SUITS.CLUBS,
+        diamonds = G.C.SUITS.DIAMONDS,
+        tarot = G.C.SECONDARY_SET.TAROT,
+        planet = G.C.SECONDARY_SET.PLANET,
+        spectral = G.C.SECONDARY_SET.SPECTRAL,
+        edition = G.C.EDITION,
+        dark_edition = G.C.DARK_EDITION,
+        legendary = G.C.RARITY[4]
+        enhanced = G.C.SECONDARY_SET.ENHANCED,
+    }
+        for _, v in ipairs(SMODS.Rarity.obj_buffer) do 
+            G.ARGS.LOC_COLOURS[v:lower()] = G.C.RARITY[v]
+        end
+        for _, v in ipairs(SMODS.ConsumableType.ctype_buffer) do 
+            G.ARGS.LOC_COLOURS[v:lower()] = G.C.SECONDARY_SET[v]
+        end
+        for _, v in ipairs(SMODS.Suit.obj_buffer) do 
+            G.ARGS.LOC_COLOURS[v:lower()] = G.C.SUITS[v]
+        end
+    return G.ARGS.LOC_COLOURS[_c] or _default or G.C.UI.TEXT_DARK
+    end
+end
+]]
 
 if JokerDisplay then 
     local jd_def = JokerDisplay.Definitions
@@ -845,7 +1020,7 @@ if JokerDisplay then
         reminder_text_config = { scale = 0.35 },
         calc_function = function(card)
             if G.GAME.dollars < 1 then
-                card.joker_display_values.sell_cost = "$" .. card.sell_cost * 4
+                card.joker_display_values.sell_cost = "$" .. card.sell_cost
                 card.joker_display_values.selling_at ="Selling at "
             else
                 card.joker_display_values.sell_cost = ""
@@ -956,6 +1131,19 @@ if JokerDisplay then
             card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = {(minBO * minSO), (card.ability.extra.break_odds * card.ability.extra.slag_odds)}}
         end
     }            
+    jd_def['j_delatro_rebound_funds'] = {
+        text = {
+            { ref_table = "card.joker_display_values", ref_value = "active",   retrigger_type = "mult" },
+        },
+        text_config = {colour = G.C.UI.TEXT_INACTIVE, scale = 0.35},
+        calc_function = function(card)
+            if G.GAME.dollars < 1 then
+                card.joker_display_values.active = "(Active)"
+            else
+                card.joker_display_values.active = ""
+            end
+        end
+    }
 end
 
 
