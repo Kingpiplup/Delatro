@@ -33,8 +33,7 @@ SMODS.Joker{ -- Jambo
     calculate = function(self,card,context)
         if context.joker_main then
             return {
-                chip_mod = card.ability.extra.chips,
-                message = localize {type = 'variable', key = 'a_chips', vars = {card.ability.extra.chips}}
+                chips = card.ability.extra.chips,
             }
         end
         return nil
@@ -69,8 +68,7 @@ SMODS.Joker{ -- Raise
     calculate = function(self,card,context)
         if context.joker_main then
             return {
-                chip_mod = card.ability.extra.chips,
-                message = localize {type = 'variable', key = 'a_chips', vars = {card.ability.extra.chips}}
+                chips = card.ability.extra.chips,
             }
         end
         if context.before and not context.blueprint then
@@ -242,45 +240,41 @@ SMODS.Joker{ -- Prime Time
             'Mult respectivly',
         }
     },
-    config = { extra = { twof = true, threef = true, fivef = true, sevenf = true }},
+    config = { extra = {}},
     calculate = function(self, card, context)
-        if context.cardarea == G.play and context.individual or context.repetition and not context.repetition_only then
-            if context.other_card:get_id() == 2 and card.ability.extra.twof then
-                card.ability.extra.twof = false
-                return{
-                    mult_mod = 3,
-                    message = localize {type = 'variable', key = 'a_mult', vars = {3}},
-                    card = card.other_card,
-                }
-            elseif context.other_card:get_id() == 3 and card.ability.extra.threef then
-                card.ability.extra.threef = false
-                return{
-                    mult_mod = 5,
-                    message = localize {type = 'variable', key = 'a_mult', vars = {5}},
-                    card = card.other_card
-                }
-            elseif context.other_card:get_id() == 5 and card.ability.extra.fivef then
-                card.ability.extra.fivef = false
-                return{
-                    mult_mod = 7,
-                    message = localize {type = 'variable', key = 'a_mult', vars = {7}},
-                    card = card.other_card
-                }
-            elseif context.other_card:get_id() == 7 and card.ability.extra.sevenf then
-                card.ability.extra.sevenf = false
-                return{
-                    mult_mod = 11,
-                    message = localize {type = 'variable', key = 'a_mult', vars = {11}},
-                    card = card.other_card
-                }
+        if context.cardarea == G.play then
+            local a2 = true local a3 = true local a5 = true local a7 = true
+            for _, played_card in ipairs(context.scoring_hand) do
+                if played_card:get_id() == 2 and a2 then  
+                    a2 = false
+                    played_card.delatro_active_prime = true
+                elseif played_card:get_id() == 3 and a3 then
+                    a3 = false
+                    played_card.delatro_active_prime = true
+                elseif played_card:get_id() == 5 and a5 then
+                    a5 = false
+                    played_card.delatro_active_prime = true
+                elseif played_card:get_id() == 7 and a7 then
+                    a7 = false
+                    played_card.delatro_active_prime = true
+                end
+            end
+            if context.individual and context.other_card.delatro_active_prime then
+                if context.other_card:get_id() == 2 then
+                    return {mult = 3}
+                elseif context.other_card:get_id() == 3 then
+                    return {mult = 5}
+                elseif context.other_card:get_id() == 5 then
+                    return {mult = 7}
+                elseif context.other_card:get_id() == 7 then
+                    return {mult = 11}
+                end
             end
         end
         if context.after then
-            card.ability.extra.twof = true
-            card.ability.extra.threef = true
-            card.ability.extra.fivef = true
-            card.ability.extra.sevenf = true
-            return nil
+            for _, played_card in ipairs(context.scoring_hand) do
+                if played_card.delatro_active_prime then played_card.delatro_active_prime = false end
+            end
         end
     end
 }
@@ -314,8 +308,7 @@ SMODS.Joker{ -- Top 10
         if context.cardarea == G.play and context.individual then
             if context.other_card:get_id() >= 1 and context.other_card:get_id() <= 10 then
                 return {
-                    chip_mod = card.ability.extra.chips,
-                    message = localize {type = 'variable', key = 'a_chips', vars = {card.ability.extra.chips}},
+                    chips = card.ability.extra.chips,
                     card = card.other_card,
                 }
             end
@@ -778,17 +771,104 @@ SMODS.Joker{ -- Red Joker
             card.ability.extra.mult = 0
         elseif context.hand_drawn and G.deck and G.deck.cards and #G.deck.cards > 0 then
             card.ability.extra.mult = card.ability.extra.mult_per_draw * (card.ability.extra.max_deck - #G.deck.cards)
-        elseif context.joker_main then
+        end
+        if context.joker_main then
             return{
-                mult = card.ability.extra.mult,
-                colour = G.C.RED,
+                mult_mod = card.ability.extra.mult,
+                message = localize {type = 'variable', key = 'a_mult', vars = {card.ability.extra.mult}},
                 card = card,
             } 
         end
     end
 }
+SMODS.Joker{ -- Big Shot  (Potential Name Change)
+    name = '[Big Shot]',
+    key = 'big_shot',
+    rarity = 1,
+    atlas = 'Delatro1',
+    pos = {x=0,y=3},
+    cost = 5,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = '[Big Shot]',
+        text = {
+            '{C:chips}+#2#{} Chips for each remaining {C:blue}hand{}',
+            '{C:mult}+#1#{} Mult for each remaining {C:red}discard{}',
+        }
+    },
+    config = { extra = { mult_per_discard = 3, chips_per_hand = 12}},
+    loc_vars = function(self, info_queue, card)
+        return {
+            vars = {
+                card.ability.extra.mult_per_discard,card.ability.extra.chips_per_hand
+            } 
+        }
+    end,
+    calculate = function(self,card,context)
+        if context.joker_main then
+            return{
+                mult = card.ability.extra.chips_per_hand*G.GAME.current_round.hands_left,
+                chips = card.ability.extra.mult_per_discard*G.GAME.current_round.discards_left,
+                card = card,
+            } 
+        end
+    end
 
-
+}
+SMODS.Joker{ --Loaded Dice
+    name = 'Loaded Dice',
+    key = 'loaded_dice',
+    rarity = 2,
+    atlas = 'Delatro1',
+    pos = {x=1,y=3}, 
+    cost = 6,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = 'Loaded Dice',
+        text = {
+            '{C:attention}#1#x{} all {C:attention}listed{}',
+            '{C:green,E:1}Probabilities{}, {C:red,E:2}Increase{} ',
+            'all blind requirements by {C:attention}25%{}',
+            '{C:inactive}(ex:{C:green} 1 in 3{C:inactive} -> {C:green}#1# in 3{C:inactive})',
+        }
+    },   
+    config = { extra = { blind_chip_inc = 1.25, prob_inc = 2.5} },
+    loc_vars = function(self, info_queue, card)
+        return {
+            vars = {
+                card.ability.extra.prob_inc
+            } 
+        }
+    end,
+    calculate = function(self,card,context)
+        if context.setting_blind then
+            G.GAME.blind.chips = G.GAME.blind.chips*card.ability.extra.blind_chip_inc
+            G.GAME.blind.chip_text = number_format(G.GAME.blind.chips)
+            card:juice_up()
+            return {
+                message = "+" .. card.ability.extra.blind_chip_inc*100 - 100 .. "%",
+                card = card,
+                colour = G.C.RED
+            }           
+        end
+    end,
+    add_to_deck = function(self,card,from_debuff) 
+        for k, v in pairs(G.GAME.probabilities) do 
+            G.GAME.probabilities[k] = v*card.ability.extra.prob_inc
+        end
+    end,
+    remove_to_deck = function(self,card,from_debuff)
+        for k, v in pairs(G.GAME.probabilities) do 
+            G.GAME.probabilities[k] = v/card.ability.extra.prob_inc
+        end
+    end   
+}
 --hook to make sure the game object is initialized with the delatro bonuses table
 local IGO = Game.init_game_object
 function Game.init_game_object(self)
@@ -882,15 +962,13 @@ if JokerDisplay then
             {text = "+"},
             {ref_table = 'card.ability.extra', ref_value = 'chips', retrigger_type = 'chips'}
         },
-        text_config = {colour = G.C.CHIPS},
-    }
+        text_config = {colour = G.C.CHIPS},}
     jd_def['j_delatro_raise'] = {
         text = {
             {text = "+"},
             {ref_table = 'card.ability.extra', ref_value = 'chips', retrigger_type = 'chips'}
         },
-        text_config = {colour = G.C.CHIPS},
-    }
+        text_config = {colour = G.C.CHIPS},}
     jd_def['j_delatro_bonus_joker'] = {
         text = {
             { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "mult" },
@@ -922,8 +1000,7 @@ if JokerDisplay then
             card.joker_display_values.count = count
             card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { math.min(G.GAME and G.GAME.probabilities.normal or 1, card.ability.extra.odds), card.ability.extra.odds } }
             card.joker_display_values.localized_text = "(" .. localize("k_round") .. ")"
-        end
-    }
+        end}
     jd_def['j_delatro_dance_recital'] = {
         text = {
             {text = "(5,6,7,8)"},
@@ -934,8 +1011,7 @@ if JokerDisplay then
             return (playing_card:get_id() == 5 or playing_card:get_id() == 6 or
                     playing_card:get_id() == 7 or playing_card:get_id() == 8) and
                 joker_card.ability.extra.repetitions * JokerDisplay.calculate_joker_triggers(joker_card) or 0
-        end
-    }
+        end}
     jd_def['j_delatro_mult_joker'] = {
         retrigger_function = function(playing_card, scoring_hand, held_in_hand, joker_card)
             if held_in_hand then return 0 end
@@ -949,8 +1025,7 @@ if JokerDisplay then
                 end
             end
             return cardFound == playing_card and SMODS.has_enhancement(playing_card, 'm_mult') and found and JokerDisplay.calculate_joker_triggers(joker_card) * joker_card.ability.extra.repetitions or 0
-        end
-    }
+        end}
     jd_def['j_delatro_prime_time'] = {
         calc_function = function(card)
             local text, _, scoring_hand = JokerDisplay.evaluate_hand()
@@ -993,8 +1068,7 @@ if JokerDisplay then
         reminder_text = {
             {text = "(2,3,5,7)"},
         },
-        
-    }
+        }
     jd_def['j_delatro_top_10'] = {
         text = {
             {text = "+"},
@@ -1014,8 +1088,7 @@ if JokerDisplay then
                 end
             end
             card.joker_display_values.chips = chips
-        end
-    }
+        end}
     jd_def['j_delatro_7_iris'] = {  
         text = {
             { text = "+"},
@@ -1046,8 +1119,7 @@ if JokerDisplay then
             end
             card.joker_display_values.count = count
             card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { math.min(G.GAME and G.GAME.probabilities.normal or 1, card.ability.extra.odds), card.ability.extra.odds } }
-        end
-    }
+        end}
     jd_def['j_delatro_consolidation'] = {
         text = {
             {ref_table = "card.joker_display_values", ref_value = "selling_at"},
@@ -1069,13 +1141,11 @@ if JokerDisplay then
                 card.joker_display_values.sell_cost = ""
                 card.joker_display_values.selling_at = ""
             end
-        end
-    }
+        end}
     jd_def['j_delatro_divine_order'] = {
         reminder_text = {
             { text = "(7)" },
-        },
-    }
+        },}
     jd_def['j_delatro_heap_leaching'] = {
         text = {
             { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "mult" },
@@ -1121,8 +1191,7 @@ if JokerDisplay then
             card.joker_display_values.break_odds = localize { type = 'variable', key = "jdis_odds", vars = { minBO, card.ability.extra.break_odds } }
             card.joker_display_values.leach_odds = localize { type = 'variable', key = "jdis_odds", vars = { minLO, card.ability.extra.leach_odds } }
             card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = {(minBO * minLO), (card.ability.extra.break_odds * card.ability.extra.leach_odds)}}
-        end
-    }
+        end}
     jd_def['j_delatro_stone_slag'] = {
         text = {
             { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "mult" },
@@ -1172,8 +1241,7 @@ if JokerDisplay then
             card.joker_display_values.break_odds = localize { type = 'variable', key = "jdis_odds", vars = { minBO, card.ability.extra.break_odds } }
             card.joker_display_values.slag_odds = localize { type = 'variable', key = "jdis_odds", vars = { minSO, card.ability.extra.slag_odds } }
             card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = {(minBO * minSO), (card.ability.extra.break_odds * card.ability.extra.slag_odds)}}
-        end
-    }            
+        end}            
     jd_def['j_delatro_rebound_funds'] = {
         text = {
             { ref_table = "card.joker_display_values", ref_value = "active",   retrigger_type = "mult" },
@@ -1185,15 +1253,22 @@ if JokerDisplay then
             else
                 card.joker_display_values.active = ""
             end
-        end
-    }
+        end}
     jd_def['j_delatro_red_joker'] = {
         text = {
             { text = "+" },
             { ref_table = "card.ability.extra", ref_value = "mult", retrigger_type = "mult" },
         },
-        text_config = { colour = G.C.MULT },
+        text_config = { colour = G.C.MULT },}
+    jd_def['j_delatro_big_shot'] = {
+        text = {
+            { ref_table = "card.joker_display_values", ref_value = "mult",   retrigger_type = "mult" , colour = G.C.MULT},
+            { text = " " },
+            { ref_table = "card.joker_display_values", ref_value = "chips",   retrigger_type = "chips" , colour = G.C.CHIPS},
+        },
+        calc_function = function(card)
+            card.joker_display_values.mult = "+" .. tostring(card.ability.extra.mult_per_discard * G.GAME.current_round.discards_left)
+            card.joker_display_values.chips = "+" .. tostring(card.ability.extra.chips_per_hand * G.GAME.current_round.hands_left)
+        end
     }
 end
-
-
