@@ -500,17 +500,17 @@ SMODS.Joker{ -- Heap Leaching
             'Scored {C:attention}Stone Cards{} have a {C:red}#5# in #3#{} chance',
             'to be destroyed. If destroyed: {C:green}#5# in #4#{}',
             'chance to increase {C:attention}Gold Card{}',
-            'payout by {C:money}+$#1#{}'
+            'payout by {C:money}+$#1#{} {C:inactive}(Caps at $#6#){}'
             --Scored stone cards have a 1 in 5 chance to be destroyed, if destroyed: 1 in 4 chance to increase gold card payout by +$1
         }
     },
-    config = { extra = { inc = 1 , total = 0, break_odds = 3, leach_odds = 5} },
+    config = { extra = { inc = 1 , total = 0, break_odds = 2, leach_odds = 6, cap = 15} },
     loc_vars = function(self, info_queue, card)
         info_queue[#info_queue+1] = G.P_CENTERS.m_stone
         info_queue[#info_queue+1] = G.P_CENTERS.m_gold
         return {
             vars = {
-                card.ability.extra.inc, card.ability.extra.total, card.ability.extra.break_odds, card.ability.extra.leach_odds, (G.GAME.probabilities.normal or 1)
+                card.ability.extra.inc, card.ability.extra.total, card.ability.extra.break_odds, card.ability.extra.leach_odds, (G.GAME.probabilities.normal or 1), card.ability.extra.cap
                 } 
             }
     end,
@@ -518,9 +518,9 @@ SMODS.Joker{ -- Heap Leaching
         if context.cardarea == G.play then
             if context.other_card then
                 if pseudorandom('heap_leaching') < G.GAME.probabilities.normal/card.ability.extra.break_odds and 
-                SMODS.has_enhancement(context.other_card, "m_stone") and context.individual  then
+                SMODS.has_enhancement(context.other_card, "m_stone") and context.individual and not context.repetition then
                     context.other_card.marked_for_death = true
-                    if pseudorandom('heap_leaching2') < G.GAME.probabilities.normal/card.ability.extra.leach_odds then
+                    if pseudorandom('heap_leaching2') < G.GAME.probabilities.normal/card.ability.extra.leach_odds and G.P_CENTERS['m_gold'].config.h_dollars < 15 then
                         card.ability.extra.total = card.ability.extra.total + card.ability.extra.inc
                         if G.GAME.delatro_bonuses.delatro_gold_bonus == nil then
                             G.GAME.delatro_bonuses.delatro_gold_bonus = 3
@@ -590,7 +590,7 @@ SMODS.Joker{ -- Stone Slag
         if context.cardarea == G.play then
             if context.other_card then
                 if pseudorandom('stone_slag') < G.GAME.probabilities.normal/card.ability.extra.break_odds and 
-                SMODS.has_enhancement(context.other_card, "m_stone") and context.individual  then
+                SMODS.has_enhancement(context.other_card, "m_stone") and context.individual and not context.repetition then
                     context.other_card.marked_for_death = true
                     if pseudorandom('stone_slag2') < G.GAME.probabilities.normal/card.ability.extra.slag_odds then
                         card.ability.extra.total = card.ability.extra.total + card.ability.extra.inc
@@ -765,8 +765,8 @@ SMODS.Joker{ -- Red Joker
         }
     end,
     calculate = function(self,card,context)
-        if context.start_of_round then
-            card.ability.extra.max_deck = (G.deck and G.deck.cards and #G.deck.cards) or 52
+        if context.setting_blind then
+            card.ability.extra.max_deck = #G.deck.cards
         elseif context.end_of_round then
             card.ability.extra.mult = 0
         elseif context.hand_drawn and G.deck and G.deck.cards and #G.deck.cards > 0 then
@@ -818,41 +818,41 @@ SMODS.Joker{ -- Big Shot  (Potential Name Change)
     end
 
 }
-SMODS.Joker{ --Loaded Dice
+SMODS.Joker{ -- Loaded Dice
     name = 'Loaded Dice',
     key = 'loaded_dice',
-    rarity = 2,
+    rarity = 3,
     atlas = 'Delatro1',
     pos = {x=1,y=3}, 
-    cost = 6,
-    blueprint_compat = true,
+    cost = 8,
+    blueprint_compat = false,
     eternal_compat = true,
     unlocked = true,
     discovered = true,
     loc_txt = {
         name = 'Loaded Dice',
         text = {
-            '{C:attention}#1#x{} all {C:attention}listed{}',
-            '{C:green,E:1}Probabilities{}, {C:red,E:2}Increase{} ',
-            'all blind requirements by {C:attention}25%{}',
-            '{C:inactive}(ex:{C:green} 1 in 3{C:inactive} -> {C:green}#1# in 3{C:inactive})',
+            '#2#x all {C:attention}listed{}',
+            '{C:green,E:1}Probabilities{}, {C:red,E:2}Increase{}',
+            'all blind requirements by {C:green}#1#%{}',
+            '{C:inactive}(+20% per probability chance){}'
         }
     },   
-    config = { extra = { blind_chip_inc = 1.25, prob_inc = 2.5} },
+    config = { extra = { blind_chip_inc = 20, prob_inc = 2.5} },
     loc_vars = function(self, info_queue, card)
         return {
             vars = {
-                card.ability.extra.prob_inc
+                card.ability.extra.blind_chip_inc * G.GAME.probabilities.normal or 1, card.ability.extra.prob_inc
             } 
         }
     end,
     calculate = function(self,card,context)
-        if context.setting_blind then
-            G.GAME.blind.chips = G.GAME.blind.chips*card.ability.extra.blind_chip_inc
+        if context.setting_blind and not context.blueprint then
+            G.GAME.blind.chips = G.GAME.blind.chips*(card.ability.extra.blind_chip_inc/100 + 1)
             G.GAME.blind.chip_text = number_format(G.GAME.blind.chips)
             card:juice_up()
             return {
-                message = "+" .. card.ability.extra.blind_chip_inc*100 - 100 .. "%",
+                message = "+" .. card.ability.extra.blind_chip_inc * G.GAME.probabilities.normal .. "%",
                 card = card,
                 colour = G.C.RED
             }           
@@ -863,7 +863,7 @@ SMODS.Joker{ --Loaded Dice
             G.GAME.probabilities[k] = v*card.ability.extra.prob_inc
         end
     end,
-    remove_to_deck = function(self,card,from_debuff)
+    remove_from_deck = function(self,card,from_debuff)
         for k, v in pairs(G.GAME.probabilities) do 
             G.GAME.probabilities[k] = v/card.ability.extra.prob_inc
         end
@@ -1165,7 +1165,7 @@ if JokerDisplay then
                 { text = ")" ,colour = G.C.RED},
             },
         },
-        extra_config = { colour = G.C.GREEN, scale = 0.3 },
+        extra_config = { colour = G.C.GREEN, scale = 0.25 },
         reminder_text = {
             { text = "(Leach: " },
             { ref_table = "card.joker_display_values", ref_value = "odds"},
@@ -1215,7 +1215,7 @@ if JokerDisplay then
                 { text = ")" ,colour = G.C.RED},
             },
         },
-        extra_config = { colour = G.C.GREEN, scale = 0.3 },
+        extra_config = { colour = G.C.GREEN, scale = 0.25 },
         reminder_text = {
             { text = "(Slag: " },
             { ref_table = "card.joker_display_values", ref_value = "odds"},
