@@ -433,6 +433,8 @@ SMODS.Joker{ -- Consolidation
     add_to_deck = function(self,card,from_debuff)
         card.ability.extra_value = -card.sell_cost
         card:set_cost(-card.sell_cost)
+        card.cost = 0
+        card.extra_cost = 0
     end
 }
 SMODS.Joker{ -- Divine Order
