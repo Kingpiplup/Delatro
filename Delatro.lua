@@ -652,29 +652,31 @@ SMODS.Joker{ -- Rebound Funds
         return { vars = {card.ability.extra.thresh} }
     end,
     calculate = function(self,card,context)
-        local temp = {}
-        for i = 1, #G.jokers.cards do
-            if G.jokers.cards[i].config.center.key == card.config.center.key then
-                temp[#temp + 1] = G.jokers.cards[i]
+        if not context.blueprint then
+            local temp = {}
+            for i = 1, #G.jokers.cards do
+                if G.jokers.cards[i].config.center.key == card.config.center.key then
+                    temp[#temp + 1] = G.jokers.cards[i]
+                end
+            end 
+            for i = 1, #temp do
+                temp[i].ability.extra.first = (i == 1)
             end
-        end 
-        for i = 1, #temp do
-            temp[i].ability.extra.first = (i == 1)
-        end
-        if G.GAME.dollars <= card.ability.extra.thresh then
-            if context.delatro_ease_dollars and not context.blueprint then
-                if context.delatro_ease_dollars > 0 and a and card.ability.extra.first then
-                    a = false
-                    ease_dollars(context.delatro_ease_dollars)
-                    return {
-                        message = "2x",
-                        colour = G.C.MONEY,
-                        card = card,
-                    }
+            if G.GAME.dollars <= card.ability.extra.thresh then
+                if context.delatro_ease_dollars then
+                    if context.delatro_ease_dollars > 0 and a and card.ability.extra.first then
+                        a = false
+                        ease_dollars(context.delatro_ease_dollars)
+                        return {
+                            message = "2x",
+                            colour = G.C.MONEY,
+                            card = card,
+                        }
+                    end
                 end
             end
+            a = true
         end
-        a = true
     end
 }
 SMODS.Joker{ -- Paycheck
@@ -840,7 +842,7 @@ SMODS.Joker{ -- Loaded Dice
             '{C:inactive}(+20% per probability chance){}'
         }
     },   
-    config = { extra = { blind_chip_inc = 20, prob_inc = 2.5} },
+    config = { extra = { blind_chip_inc = 20, prob_inc = 3} },
     loc_vars = function(self, info_queue, card)
         return {
             vars = {
@@ -870,6 +872,71 @@ SMODS.Joker{ -- Loaded Dice
             G.GAME.probabilities[k] = v/card.ability.extra.prob_inc
         end
     end   
+}
+SMODS.Joker{ -- Red Print
+    name = 'Redprint',
+    key = 'redprint',
+    rarity = 3,
+    atlas = 'Delatro1',
+    pos = {x=2,y=3},
+    cost = 8,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = 'Redprint',
+        text = {
+            'Coppies ability of ',
+            '{C:attention}Joker{} to the left',
+            '{B:1,C:white,s:0.8}#1#'
+        }
+    },   
+    config = { extra = { desc = "", col = G.C.WHITE} },
+    loc_vars = function(self, info_queue, card)
+        return {
+            vars = {
+                card.ability.extra.desc,
+                colours = {
+                    card.ability.extra.col,
+                }
+            } 
+        }
+    end,
+    calculate = function(self,card,context)
+        local other_joker = nil
+        for i = 1, #G.jokers.cards do
+            if G.jokers.cards[i] == card then other_joker = G.jokers.cards[i-1] end
+        end
+        if other_joker and other_joker ~= card then
+            context.blueprint = (context.blueprint and (context.blueprint + 1)) or 1
+            context.blueprint_card = context.blueprint_card or card
+            if context.blueprint > #G.jokers.cards + 1 then return end
+            local other_joker_ret = other_joker:calculate_joker(context)
+            if other_joker_ret then 
+                other_joker_ret.card = context.blueprint_card or card
+                other_joker_ret.colour = G.C.RED
+                return other_joker_ret
+            end
+        end
+    end,
+    update = function(self, card, dt)
+        if G.jokers and G.jokers.cards then
+            local other_joker = nil
+            for i = 1, #G.jokers.cards do
+                if G.jokers.cards[i] == card then other_joker = G.jokers.cards[i-1] end
+            end
+            if other_joker and other_joker ~= card and other_joker.config.center.blueprint_compat then
+                card.blueprint_compat = true
+                card.ability.extra.col = G.C.GREEN
+                card.ability.extra.desc = 'Compatible'
+            else
+                card.blueprint_compat = false
+                card.ability.extra.col = G.C.RED
+                card.ability.extra.desc = 'Incompatible'
+            end
+        end
+    end
 }
 --hook to make sure the game object is initialized with the delatro bonuses table
 local IGO = Game.init_game_object
@@ -1271,6 +1338,25 @@ if JokerDisplay then
         calc_function = function(card)
             card.joker_display_values.mult = "+" .. tostring(card.ability.extra.mult_per_discard * G.GAME.current_round.discards_left)
             card.joker_display_values.chips = "+" .. tostring(card.ability.extra.chips_per_hand * G.GAME.current_round.hands_left)
+        end}
+    jd_def['j_delatro_redprint'] = {
+        reminder_text = {
+            { text = "(" },
+            { ref_table = "card.joker_display_values", ref_value = "blueprint_compat", colour = G.C.RED },
+            { text = ")" }
+        },
+        calc_function = function(card)
+            local copied_joker, copied_debuff = JokerDisplay.calculate_blueprint_copy(card)
+            card.joker_display_values.blueprint_compat = localize('k_incompatible')
+            JokerDisplay.copy_display(card, copied_joker, copied_debuff)
+        end,
+        get_blueprint_joker = function(card)
+            for i = 1, #G.jokers.cards do
+                if G.jokers.cards[i] == card then
+                    return G.jokers.cards[i - 1]
+                end
+            end
+            return nil
         end
     }
 end
