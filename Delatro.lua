@@ -4,6 +4,7 @@
 local mod = SMODS.current_mod
 
 SMODS.Atlas {key = 'Delatro1',path = 'Delatro1Sprites.png',px =71,py = 95}
+SMODS.Atlas {key = 'modicon',path = 'modicon.png',px =32,py = 32}
 
 SMODS.Joker{ -- Jambo 
     name = "Jambo", --for testing
