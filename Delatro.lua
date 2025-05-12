@@ -58,7 +58,7 @@ SMODS.Joker{ -- Raise
             "{C:inactive}(Currently {C:chips}+#1#{C:inactive} Chips)"
         }
     },
-    config = { extra = { chips = 0, chip_gain = 2 } },
+    config = { extra = { chips = 0, chip_gain = 3 } },
     loc_vars = function(self, info_queue, card)
 		return {
              vars = {
@@ -145,7 +145,7 @@ SMODS.Joker{ -- Bonus
             'chance to give {C:money}$#1#{}'
         }
     },
-    config = { extra = { income = 1,odds = 2 } },
+    config = { extra = { income = 2,odds = 2 } },
     loc_vars = function(self, info_queue, card)
         info_queue[#info_queue+1] = G.P_CENTERS.m_bonus
         return {
@@ -297,7 +297,7 @@ SMODS.Joker{ -- Top 10
             'give {C:chips}+#1#{} Chips',
         }
     },
-    config = { extra = { chips = 8} },
+    config = { extra = { chips = 12} },
     loc_vars = function(self, info_queue, card)
         return {
              vars = {
@@ -388,54 +388,50 @@ SMODS.Joker{ -- Consolidation
         }
     end,
     calculate = function(self,card,context)
-        if not context.blueprint then 
-            if context.end_of_round and context.cardarea == G.jokers then
-                card.ability.extra.val  = card.sell_cost
-                card.ability.extra.val = card.ability.extra.val + card.ability.extra.sell_inc
-                if G.GAME.dollars >= 1 then
-                    card.sell_cost = card.ability.extra.val
-                else
-                    card.sell_cost =  card.ability.extra.val * card.ability.extra.sell_mult 
-                end
-                return {   
-                    message = "Upgrade",
+        if card.ability.extra.val ~= card.sell_cost then
+            card.ability.extra_value = (card.ability.extra_value or 0) + ((card.sell_cost - card.ability.extra.val)*(G.GAME.dollars < 1 and card.ability.extra.sell_mult-1 or 0))
+            card:set_cost()
+            card.ability.extra.val = card.sell_cost
+        end
+            if not context.blueprint then 
+            if context.end_of_round and not context.individual and not context.repetition then
+                card.ability.extra.val = (card.ability.extra.val or 0) + (card.ability.extra.sell_inc*(G.GAME.dollars < 1 and card.ability.extra.sell_mult or 1))
+                card.ability.extra_value = (card.ability.extra_value or 0) + (card.ability.extra.sell_inc*(G.GAME.dollars < 1 and card.ability.extra.sell_mult or 1))
+                card:set_cost()
+                return {
+                    message = ("Upgrade"),
                     colour = G.C.MONEY,
                     card = card,
                 }
             end
-            if context.selling_self then
-                if G.GAME.dollars < 1 then
-                    return {
-                        message = "4x!",
-                        colour = G.C.MONEY,
-                        card = card,
-                    }
-                else
-                    return {
-                        message = "1x",
-                        colour = G.C.MONEY,
-                        card = card,
-                    }
-                end
-            end
+            if context.selling_self then return{
+                message = (G.GAME.dollars < 1 and {"4x!"} or {"1x"})[1],
+                colour = G.C.MONEY,
+                card = card,
+            }end
             if context.delatro_ease_dollars then
-                if G.GAME.dollars + context.delatro_ease_dollars < 1 then
-                    if context.delatro_ease_dollars < 0 then
-                        card.sell_cost = card.ability.extra.val * card.ability.extra.sell_mult
+                local CGD = G.GAME.dollars + context.delatro_ease_dollars
+                if CGD < 1 then
+                    if CGD - context.delatro_ease_dollars >= 1 then
+                        print("----- "..context.delatro_ease_dollars.." -----")
+                        card.ability.extra_value = (card.ability.extra_value or 0) + (card.sell_cost*(card.ability.extra.sell_mult-1))
+                        card.ability.extra.val = (card.ability.extra.val or 0) + (card.sell_cost*(card.ability.extra.sell_mult-1))
+                        card:set_cost() card:juice_up()
                     end
                 else
-                    if context.delatro_ease_dollars > 0 then
-                        card.sell_cost = card.ability.extra.val
-                    end    
-                end
+                    if CGD - context.delatro_ease_dollars < 1 then
+                        print("----- "..context.delatro_ease_dollars.." -----")
+                        card.ability.extra_value = (card.ability.extra_value or 0) - ((card.ability.extra.sell_mult-1)*(card.sell_cost/card.ability.extra.sell_mult))
+                        card.ability.extra.val = (card.ability.extra.val or 0) - ((card.ability.extra.sell_mult-1)*(card.sell_cost/card.ability.extra.sell_mult))
+                        card:set_cost() card:juice_up()
+                    end
+                end    
             end
         end
     end,
     add_to_deck = function(self,card,from_debuff)
         card.ability.extra_value = -card.sell_cost
-        card:set_cost(-card.sell_cost)
-        card.cost = 0
-        card.extra_cost = 0
+        card:set_cost()
     end
 }
 SMODS.Joker{ -- Divine Order
@@ -643,42 +639,27 @@ SMODS.Joker{ -- Rebound Funds
     loc_txt = {
         name = 'Rebound Funds',
         text = {
-            'While at or below {C:money}$#1#{}',
-            'all income is {C:attention}doubled{}',
-            '{C:inactive}(Cannot Stack){}'
+            [1] = 'Gives {C:money}$#2#{} at end of round',
+            [2] = 'Increases payout by {C:money}$#3#{} whenever {C:money}${} is',
+            [3] = 'earned while owning {C:money}$#1#{} or less',
+            [4] = '{C:inactive}(Resets each payout)'
         }
     },
-    config = { extra = { thresh = 0, a = true, first = false} },
+    config = { extra = { thresh = 5, payout = 0, payout_inc = 1} },
     loc_vars = function(self, info_queue, card)
-        return { vars = {card.ability.extra.thresh} }
+        return { vars = {card.ability.extra.thresh, card.ability.extra.payout, card.ability.extra.payout_inc} }
     end,
     calculate = function(self,card,context)
-        if not context.blueprint then
-            local temp = {}
-            for i = 1, #G.jokers.cards do
-                if G.jokers.cards[i].config.center.key == card.config.center.key then
-                    temp[#temp + 1] = G.jokers.cards[i]
-                end
-            end 
-            for i = 1, #temp do
-                temp[i].ability.extra.first = (i == 1)
-            end
-            if G.GAME.dollars <= card.ability.extra.thresh then
-                if context.delatro_ease_dollars then
-                    if context.delatro_ease_dollars > 0 and a and card.ability.extra.first then
-                        a = false
-                        ease_dollars(context.delatro_ease_dollars)
-                        return {
-                            message = "2x",
-                            colour = G.C.MONEY,
-                            card = card,
-                        }
-                    end
-                end
-            end
-            a = true
+        if not context.blueprint and G.GAME.dollars <= card.ability.extra.thresh and context.delatro_ease_dollars > 0 then
+            card.ability.extra.payout = card.ability.extra.payout + card.ability.extra.payout_inc
+            card:juice_up()
         end
-    end
+    end,
+    calc_dollar_bonus = function(self, card)
+        local thunk = card.ability.extra.payout -- i saw this code in the extra credit mod and thought it was funny 
+        card.ability.extra.payout = 0
+        return thunk
+    end,
 }
 SMODS.Joker{ -- Paycheck
     name = 'Paycheck',
@@ -853,7 +834,7 @@ SMODS.Joker{ -- Loaded Dice
     end,
     calculate = function(self,card,context)
         if context.setting_blind and not context.blueprint then
-            G.GAME.blind.chips = G.GAME.blind.chips*(card.ability.extra.blind_chip_inc/100 + 1)
+            G.GAME.blind.chips = G.GAME.blind.chips*(card.ability.extra.blind_chip_inc*G.GAME.probabilities.normal/100 + 1)
             G.GAME.blind.chip_text = number_format(G.GAME.blind.chips)
             card:juice_up()
             return {
@@ -939,6 +920,45 @@ SMODS.Joker{ -- Red Print
         end
     end
 }
+SMODS.Joker{ -- Snake Eyes
+    name = "Snake Eyes",
+    key = "snake_eyes",
+    rarity = 2,
+    atlas = 'Delatro1',
+    pos = {x=3,y=3},
+    cost = 8,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    loc_txt = {
+        name = "Snake Eyes",
+        text = {
+            "Each scored card has a {C:green}#1# in #2#{}",
+            "chance to retrigger {C:attention}#3#{} times",
+        }
+    },
+    config = { extra = { retriggers = 2, odds = 6} },
+    loc_vars = function(self, info_queue, card)
+        return {
+            vars = {
+                 (G.GAME.probabilities.normal or 1),card.ability.extra.odds, card.ability.extra.retriggers, 
+            } 
+        }
+    end,
+    calculate = function(self,card,context)
+        if context.cardarea == G.play and context.repetition and not context.repetition_only and 
+        pseudorandom('snake_eyes') < G.GAME.probabilities.normal/card.ability.extra.odds then
+            return {
+                message = 'Again!',
+                repetitions = card.ability.extra.retriggers,
+                card = card,
+            }
+        end
+    end
+}
+
+
 --hook to make sure the game object is initialized with the delatro bonuses table
 local IGO = Game.init_game_object
 function Game.init_game_object(self)
@@ -1205,7 +1225,7 @@ if JokerDisplay then
         reminder_text_config = { scale = 0.35 },
         calc_function = function(card)
             if G.GAME.dollars < 1 then
-                card.joker_display_values.sell_cost = "$" .. card.sell_cost
+                card.joker_display_values.sell_cost = "$" .. card.ability.extra.val
                 card.joker_display_values.selling_at ="Selling at "
             else
                 card.joker_display_values.sell_cost = ""
