@@ -762,7 +762,7 @@ SMODS.Joker{ -- Loaded Dice
     loc_vars = function(self, info_queue, card)
         return {
             vars = {
-                card.ability.extra.blind_chip_inc * G.GAME.probabilities.normal or 1, card.ability.extra.prob_inc
+                (card.ability.extra.blind_chip_inc * G.GAME.probabilities.normal) or 1, card.ability.extra.prob_inc
             } 
         }
     end,

@@ -14,6 +14,8 @@
         "Game",
         "ease_dollars",
         "JokerDisplay",
-        "scoring_name"
+        "scoring_name",
+        "create_card"
+
     ]
 }
