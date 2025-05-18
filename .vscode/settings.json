@@ -1,0 +1,19 @@
+{
+    "Lua.diagnostics.globals": [
+        "G",
+        "SMODS",
+        "pseudorandom",
+        "level_up_hand",
+        "Event",
+        "copy_card",
+        "pseudorandom_element",
+        "pseudoseed",
+        "card_eval_status_text",
+        "localize",
+        "number_format",
+        "Game",
+        "ease_dollars",
+        "JokerDisplay",
+        "scoring_name"
+    ]
+}
