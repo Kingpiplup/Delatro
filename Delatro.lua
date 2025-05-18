@@ -20,16 +20,12 @@ SMODS.Joker{ -- Jambo
     loc_txt = {
         name = 'Jambo',
         text = {
-            '{C:chips}+#1#{} Chips'
+            [1] = '{C:chips}+#1#{} Chips'
         }
     },
     config = { extra = { chips = 20 } },
     loc_vars = function(self, info_queue, card)
-		return {
-             vars = {
-                card.ability.extra.chips
-                } 
-            }
+		return {vars = {card.ability.extra.chips}}
 	end,
     calculate = function(self,card,context)
         if context.joker_main then
@@ -54,17 +50,13 @@ SMODS.Joker{ -- Raise
     loc_txt = {
         name = 'Raise',
         text = {
-            'Gains {C:chips}+#2#{} Chips each hand played',
-            "{C:inactive}(Currently {C:chips}+#1#{C:inactive} Chips)"
+            [1] ='Gains {C:chips}+#2#{} Chips each hand played',
+            [2] ="{C:inactive}(Currently {C:chips}+#1#{C:inactive} Chips)"
         }
     },
     config = { extra = { chips = 0, chip_gain = 3 } },
     loc_vars = function(self, info_queue, card)
-		return {
-             vars = {
-                card.ability.extra.chips,card.ability.extra.chip_gain
-                } 
-            }
+		return {vars = {card.ability.extra.chips,card.ability.extra.chip_gain}}
 	end,
     calculate = function(self,card,context)
         if context.joker_main then
@@ -97,9 +89,9 @@ SMODS.Joker{ -- Mult
     loc_txt = {
         name = 'Mult Joker',
         text = {
-            'Retrigger {C:attention}first{}',
-            'scored {C:attention}Mult Card{}',
-            'an additional {C:attention}2 {}times'
+            [1] ='Retrigger {C:attention}first{}',
+            [2] ='scored {C:attention}Mult Card{}',
+            [3] ='an additional {C:attention}2 {}times'
         }
     },
     config = { extra = { repetitions = 2, card_found = nil, found = false } },
@@ -140,19 +132,15 @@ SMODS.Joker{ -- Bonus
     loc_txt = {
         name = 'Bonus Joker',
         text = {
-            'Each {C:attention}Bonus Card{} held in hand',
-            'at end of round has {C:green}#3# in #2# {}',
-            'chance to give {C:money}$#1#{}'
+            [1] ='Each {C:attention}Bonus Card{} held in hand',
+            [2] ='at end of round has {C:green}#3# in #2# {}',
+            [3] ='chance to give {C:money}$#1#{}'
         }
     },
     config = { extra = { income = 2,odds = 2 } },
     loc_vars = function(self, info_queue, card)
         info_queue[#info_queue+1] = G.P_CENTERS.m_bonus
-        return {
-            vars = {
-                card.ability.extra.income, card.ability.extra.odds,(G.GAME.probabilities.normal or 1)
-            } 
-        }
+        return {vars = {card.ability.extra.income, card.ability.extra.odds,(G.GAME.probabilities.normal or 1)}}
     end,
     calculate = function(self,card,context)
         if context.end_of_round and context.cardarea == G.hand and context.individual and SMODS.has_enhancement(context.other_card, 'm_bonus') then
@@ -186,32 +174,14 @@ SMODS.Joker{ -- Dance Recital
     loc_txt = {
         name = 'Dance Recital',
         text = {
-            'Retrigger each',
-            'played {C:attention}5{}, {C:attention}6{}, {C:attention}7{}, or {C:attention}8{}'
+            [1] ='Retrigger each',
+            [2] ='played {C:attention}5{}, {C:attention}6{}, {C:attention}7{}, or {C:attention}8{}'
         }
     },
     config = { extra = { repetitions = 1} },
     calculate = function(self, card, context)
         if context.cardarea == G.play and context.repetition and not context.repetition_only then
-            if context.other_card:get_id() == 5 then
-                return {
-                    message = 'Again!',
-                    repetitions = card.ability.extra.repetitions,
-                    card = card,
-                }
-            elseif context.other_card:get_id() == 6 then
-                return {
-                    message = 'Again!',
-                    repetitions = card.ability.extra.repetitions,
-                    card = card,
-                }
-            elseif context.other_card:get_id() == 7 then
-                return {
-                    message = 'Again!',
-                    repetitions = card.ability.extra.repetitions,
-                    card = card,
-                }
-            elseif context.other_card:get_id() == 8 then
+             if context.other_card:get_id() >= 5 and context.other_card:get_id() <= 8 then
                 return {
                     message = 'Again!',
                     repetitions = card.ability.extra.repetitions,
@@ -235,46 +205,30 @@ SMODS.Joker{ -- Prime Time
     loc_txt = {
         name = 'Prime Time',
         text = {
-            'Each {C:attention}Unique{} scored',
-            '{C:attention}2{}, {C:attention}3{}, {C:attention}5{}, or {C:attention}7{} gives',
-            '{C:mult}+3{}, {C:mult}+5{}, {C:mult}+7{} or {C:mult}+11{}',
-            'Mult respectivly',
+            [1] ='Each {C:attention}Unique{} scored',
+            [2] ='{C:attention}2{}, {C:attention}3{}, {C:attention}5{}, or {C:attention}7{} gives',
+            [3] ='{C:mult}+3{}, {C:mult}+5{}, {C:mult}+7{} or {C:mult}+11{}',
+            [4] ='Mult respectivly',
         }
     },
     config = { extra = {}},
     calculate = function(self, card, context)
         if context.cardarea == G.play then
-            local a2 = true local a3 = true local a5 = true local a7 = true
+            local flags = { [2] = true, [3] = true, [5] = true, [7] = true }
             for _, played_card in ipairs(context.scoring_hand) do
-                if played_card:get_id() == 2 and a2 then  
-                    a2 = false
-                    played_card.delatro_active_prime = true
-                elseif played_card:get_id() == 3 and a3 then
-                    a3 = false
-                    played_card.delatro_active_prime = true
-                elseif played_card:get_id() == 5 and a5 then
-                    a5 = false
-                    played_card.delatro_active_prime = true
-                elseif played_card:get_id() == 7 and a7 then
-                    a7 = false
+                if flags[played_card:get_id()] then
+                    flags[played_card:get_id()] = false
                     played_card.delatro_active_prime = true
                 end
             end
             if context.individual and context.other_card.delatro_active_prime then
-                if context.other_card:get_id() == 2 then
-                    return {mult = 3}
-                elseif context.other_card:get_id() == 3 then
-                    return {mult = 5}
-                elseif context.other_card:get_id() == 5 then
-                    return {mult = 7}
-                elseif context.other_card:get_id() == 7 then
-                    return {mult = 11}
-                end
+                local mults = { [2] = 3, [3] = 5, [5] = 7, [7] = 11 }
+                return {mult = mults[context.other_card:get_id()]}
             end
         end
         if context.after then
             for _, played_card in ipairs(context.scoring_hand) do
-                if played_card.delatro_active_prime then played_card.delatro_active_prime = false end
+                if played_card.delatro_active_prime then played_card.delatro_active_prime = nil end
             end
         end
     end
@@ -293,17 +247,13 @@ SMODS.Joker{ -- Top 10
     loc_txt = {
         name = 'Top 10',
         text = {
-            'Scored number cards',
-            'give {C:chips}+#1#{} Chips',
+            [1] ='Scored number cards',
+            [2] ='give {C:chips}+#1#{} Chips',
         }
     },
     config = { extra = { chips = 12} },
     loc_vars = function(self, info_queue, card)
-        return {
-             vars = {
-                card.ability.extra.chips
-                } 
-            }
+        return {vars = {card.ability.extra.chips}}
     end,
     calculate = function(self,card,context)
         if context.cardarea == G.play and context.individual then
@@ -331,29 +281,23 @@ SMODS.Joker{ -- 7 Iris
     loc_txt = {
         name = '7 Iris',
         text = {
-            'Each played {C:attention}7{} has a',
-            '{C:green}#1# in #2#{} chance to',
-            'level up played hand'
+            [1] ='Each played {C:attention}7{} has a',
+            [2] ='{C:green}#1# in #2#{} chance to',
+            [3] ='level up played hand'
         }
     },
     config = { extra = { odds = 4 , handup = scoring_name} },
     loc_vars = function(self, info_queue, card)
-        return {
-            vars = {
-                (G.GAME.probabilities.normal or 1), card.ability.extra.odds
-            } 
-        }
+        return {vars = {(G.GAME.probabilities.normal or 1), card.ability.extra.odds}}
     end,
     calculate = function(self,card,context)
         if context.cardarea == G.play and context.individual then
-            if context.other_card:get_id() == 7 then
-                if pseudorandom('7_iris') < G.GAME.probabilities.normal/card.ability.extra.odds then
-                    return {
-                        message = 'Level Up!',
-                        card = card,
-                        level_up_hand(card, context.scoring_name, true, 1)
-                    }
-                end
+            if context.other_card:get_id() == 7 and pseudorandom('7_iris') < G.GAME.probabilities.normal/card.ability.extra.odds then
+                return {
+                    message = 'Level Up!',
+                    card = card,
+                    level_up_hand(card, context.scoring_name, true, 1)
+                }
             end
         end
     end
@@ -372,20 +316,16 @@ SMODS.Joker{ -- Consolidation
     loc_txt = {
         name = 'Consolidation',
         text = {
-            '{C:money}+$#1#{} sell value at end of',
-            'round, sells at {C:money}#2#x{} if',
-            '{C:money}money{} is under {C:money}$1{}',
-            '{C:inactive}(Starts at $0){}'
+            [1] ='{C:money}+$#1#{} sell value at end of',
+            [2] ='round, sells at {C:money}#2#x{} if',
+            [3] ='{C:money}money{} is under {C:money}$1{}',
+            [4] ='{C:inactive}(Starts at $0){}'
 
         }
     },
     config = { extra = { sell_inc = 1, sell_mult = 4, val = 0} },
     loc_vars = function(self, info_queue, card)
-        return {
-            vars = {
-                card.ability.extra.sell_inc, card.ability.extra.sell_mult, card.ability.extra.val
-            } 
-        }
+        return {vars = {card.ability.extra.sell_inc, card.ability.extra.sell_mult, card.ability.extra.val}}
     end,
     calculate = function(self,card,context)
         if card.ability.extra.val ~= card.sell_cost then
@@ -413,14 +353,12 @@ SMODS.Joker{ -- Consolidation
                 local CGD = G.GAME.dollars + context.delatro_ease_dollars
                 if CGD < 1 then
                     if CGD - context.delatro_ease_dollars >= 1 then
-                        print("----- "..context.delatro_ease_dollars.." -----")
                         card.ability.extra_value = (card.ability.extra_value or 0) + (card.sell_cost*(card.ability.extra.sell_mult-1))
                         card.ability.extra.val = (card.ability.extra.val or 0) + (card.sell_cost*(card.ability.extra.sell_mult-1))
                         card:set_cost() card:juice_up()
                     end
                 else
                     if CGD - context.delatro_ease_dollars < 1 then
-                        print("----- "..context.delatro_ease_dollars.." -----")
                         card.ability.extra_value = (card.ability.extra_value or 0) - ((card.ability.extra.sell_mult-1)*(card.sell_cost/card.ability.extra.sell_mult))
                         card.ability.extra.val = (card.ability.extra.val or 0) - ((card.ability.extra.sell_mult-1)*(card.sell_cost/card.ability.extra.sell_mult))
                         card:set_cost() card:juice_up()
@@ -448,10 +386,10 @@ SMODS.Joker{ -- Divine Order
     loc_txt = {
         name = 'Divine Order',
         text = {
-            'Creates a copy of {C:attention}1{} random',
-            '{C:attention}consumable{} card in your',
-            'possession if{C:attention} scoring hand{}',
-            'contains three {C:attention}7s{}',
+            [1] ='Creates a copy of {C:attention}1{} random',
+            [2] ='{C:attention}consumable{} card in your',
+            [3] ='possession if{C:attention} scoring hand{}',
+            [4] ='contains three {C:attention}7s{}',
         }
     },
     config = { extra = { count = 0} },
@@ -496,22 +434,19 @@ SMODS.Joker{ -- Heap Leaching
     loc_txt = {
         name = 'Heap Leaching',
         text = {
-            'Scored {C:attention}Stone Cards{} have a {C:red}#5# in #3#{} chance',
-            'to be destroyed. If destroyed: {C:green}#5# in #4#{}',
-            'chance to increase {C:attention}Gold Card{}',
-            'payout by {C:money}+$#1#{} {C:inactive}(Caps at $#6#){}'
-            --Scored stone cards have a 1 in 5 chance to be destroyed, if destroyed: 1 in 4 chance to increase gold card payout by +$1
+            [1] ='Scored {C:attention}Stone Cards{} have a {C:red}#5# in #3#{} chance',
+            [2] ='to be destroyed. If destroyed: {C:green}#5# in #4#{}',
+            [3] ='chance to increase {C:attention}Gold Card{}',
+            [4] ='payout by {C:money}+$#1#{} {C:inactive}(Caps at $#6#){}'
         }
     },
     config = { extra = { inc = 1 , total = 0, break_odds = 2, leach_odds = 6, cap = 15} },
     loc_vars = function(self, info_queue, card)
         info_queue[#info_queue+1] = G.P_CENTERS.m_stone
         info_queue[#info_queue+1] = G.P_CENTERS.m_gold
-        return {
-            vars = {
-                card.ability.extra.inc, card.ability.extra.total, card.ability.extra.break_odds, card.ability.extra.leach_odds, (G.GAME.probabilities.normal or 1), card.ability.extra.cap
-                } 
-            }
+        return {vars = {card.ability.extra.inc, card.ability.extra.total, card.ability.extra.break_odds,
+                        card.ability.extra.leach_odds, (G.GAME.probabilities.normal or 1), card.ability.extra.cap
+        }}
     end,
     calculate = function(self,card,context)
         if context.cardarea == G.play then
@@ -568,11 +503,10 @@ SMODS.Joker{ -- Stone Slag
     loc_txt = {
         name = 'Stone Slag',
         text = {
-            'Scored {C:attention}Stone Cards{} have a {C:red}#5# in #3#{} chance',
-            'to be destroyed. If destroyed: {C:green}#5# in #4#{}',
-            'chance to increase {C:attention}Steel Card{}',
-            'Mult by {X:mult,C:white}X#1#{} Mult'
-            --Scored stone cards have a 1 in 5 chance to be destroyed, if destroyed 1 in 4 chance to increase gold card payout by +$1
+            [1] ='Scored {C:attention}Stone Cards{} have a {C:red}#5# in #3#{} chance',
+            [2] ='to be destroyed. If destroyed: {C:green}#5# in #4#{}',
+            [3] ='chance to increase {C:attention}Steel Card{}',
+            [4] ='Mult by {X:mult,C:white}X#1#{} Mult'
         }
     },
     config = { extra = { inc = 0.1 , total = 0, break_odds = 3, slag_odds = 5} },
@@ -675,9 +609,9 @@ SMODS.Joker{ -- Paycheck
     loc_txt = {
         name = 'Paycheck',
         text = {
-            '{C:money}+$#2#{} every {C:attention}#1#{}{C:inactive} (#3#){} hands played,',
-            'increases by {C:money}$#4#{} every {C:attention}#5#{}{C:inactive} (#6#){}',
-            'hands scoring a {C:attention}7{}',
+            [1] ='{C:money}+$#2#{} every {C:attention}#1#{}{C:inactive} (#3#){} hands played,',
+            [2] ='increases by {C:money}$#4#{} every {C:attention}#5#{}{C:inactive} (#6#){}',
+            [3] ='hands scoring a {C:attention}7{}',
         }
     },
     config = {extra = {hands_total = 14, payout = 10, c_hands = 0, payout_inc = 5, up_hands = 7, c_up_hands = 0}},
@@ -737,9 +671,9 @@ SMODS.Joker{ -- Red Joker
     loc_txt = {
         name = 'Red Joker',
         text = {
-            '{C:red}+#1#{} Mult for each',
-            'card {C:attention}drawn{} to hand',
-            '{C:inactive}(Currently {C:red}+#2#{C:inactive} Mult){}'
+            [1] ='{C:red}+#1#{} Mult for each',
+            [2] ='card {C:attention}drawn{} to hand',
+            [3] ='{C:inactive}(Currently {C:red}+#2#{C:inactive} Mult){}'
         }
     },
     config = { extra = { mult_per_draw = 1, mult = 0, max_deck = (G.deck and G.deck.cards and #G.deck.cards) or 52 } },
@@ -781,8 +715,8 @@ SMODS.Joker{ -- Big Shot  (Potential Name Change)
     loc_txt = {
         name = '[Big Shot]',
         text = {
-            '{C:chips}+#2#{} Chips for each remaining {C:blue}hand{}',
-            '{C:mult}+#1#{} Mult for each remaining {C:red}discard{}',
+            [1] ='{C:chips}+#2#{} Chips for each remaining {C:blue}hand{}',
+            [2] ='{C:mult}+#1#{} Mult for each remaining {C:red}discard{}',
         }
     },
     config = { extra = { mult_per_discard = 3, chips_per_hand = 12}},
@@ -818,18 +752,18 @@ SMODS.Joker{ -- Loaded Dice
     loc_txt = {
         name = 'Loaded Dice',
         text = {
-            '#2#x all {C:attention}listed{}',
-            '{C:green,E:1}Probabilities{}, {C:red,E:2}Increase{}',
-            'all blind requirements by {C:green}#1#%{}',
-            '{C:inactive}(+20% per probability chance){}'
+            [1] ='#2#x all {C:attention}listed{}',
+            [2] ='{C:green,E:1}Probabilities{}, {C:red,E:2}Increase{}',
+            [3] ='all blind requirements by {C:green}#1#%{}',
+            [4] ='{C:inactive}(+20% per probability chance){}'
         }
     },   
     config = { extra = { blind_chip_inc = 20, prob_inc = 3} },
     loc_vars = function(self, info_queue, card)
         return {
             vars = {
-                (card.ability.extra.blind_chip_inc * G.GAME.probabilities.normal) or 1, card.ability.extra.prob_inc
-            }
+                card.ability.extra.blind_chip_inc * G.GAME.probabilities.normal or 1, card.ability.extra.prob_inc
+            } 
         }
     end,
     calculate = function(self,card,context)
@@ -869,9 +803,9 @@ SMODS.Joker{ -- Red Print
     loc_txt = {
         name = 'Redprint',
         text = {
-            'Coppies ability of ',
-            '{C:attention}Joker{} to the left',
-            '{B:1,C:white,s:0.8}#1#'
+            [1] ='Coppies ability of ',
+            [2] ='{C:attention}Joker{} to the left',
+            [3] ='{B:1,C:white,s:0.8}#1#'
         }
     },   
     config = { extra = { desc = "", col = G.C.WHITE} },
@@ -934,17 +868,13 @@ SMODS.Joker{ -- Snake Eyes
     loc_txt = {
         name = "Snake Eyes",
         text = {
-            "Each scored card has a {C:green}#1# in #2#{}",
-            "chance to retrigger {C:attention}#3#{} times",
+            [1] ="Each scored card has a {C:green}#1# in #2#{}",
+            [2] ="chance to retrigger {C:attention}#3#{} times",
         }
     },
     config = { extra = { retriggers = 2, odds = 6} },
     loc_vars = function(self, info_queue, card)
-        return {
-            vars = {
-                 (G.GAME.probabilities.normal or 1),card.ability.extra.odds, card.ability.extra.retriggers, 
-            } 
-        }
+        return {vars = {(G.GAME.probabilities.normal or 1),card.ability.extra.odds, card.ability.extra.retriggers,}}
     end,
     calculate = function(self,card,context)
         if context.cardarea == G.play and context.repetition and not context.repetition_only and 
@@ -954,6 +884,54 @@ SMODS.Joker{ -- Snake Eyes
                 repetitions = card.ability.extra.retriggers,
                 card = card,
             }
+        end
+    end
+}
+SMODS.Joker{ -- Spawntaneity
+    name = "Spawntaneity",
+    key = "spawntaneity",
+    rarity = 2,
+    atlas = 'Delatro1',
+    pos = {x=4,y=3},
+    cost = 6,
+    blueprint_compat = true,
+    eternal_compat = true,
+    unlocked = true,
+    discovered = true,
+    enhancement_gate = 'm_wild',
+    loc_txt = {
+        name = "Spawntaneity",
+        text = {
+            [1] = "Scored {C:attention}Wild{} cards have a {C:green}#1# in #2#{}",
+            [2] = "chance to create a random {C:attention}consumable{}",
+            [3] = "{C:inactive}(Must have space)",
+        }
+    },
+    config = { extra = {odds = 6} },
+    loc_vars = function(self, info_queue, card)
+        info_queue[#info_queue+1] = G.P_CENTERS.m_wild
+        return {vars = {(G.GAME.probabilities.normal or 1),card.ability.extra.odds}}
+    end,
+    calculate = function(self,card,context)
+        if context.cardarea == G.play and context.repetition and not context.repetition_only and 
+        pseudorandom('spawntaneity') < G.GAME.probabilities.normal/card.ability.extra.odds then
+            if SMODS.has_enhancement(context.other_card, "m_wild") and #G.consumeables.cards + G.GAME.consumeable_buffer < G.consumeables.config.card_limit then
+                local rand = pseudorandom('spawntaneity2')
+                local consume = (rand < 0.4 and {"Tarot"} or rand < 0.8 and {"Planet"} or {"Spectral"})[1]
+                G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
+                G.E_MANAGER:add_event(Event({
+                    trigger = 'before',
+                    delay = 0.0,
+                    func = function()
+                        local card = create_card(consume,G.consumeables, nil, nil, nil, nil, nil, 'spawntaneity')
+                        card:add_to_deck()
+                        G.consumeables:emplace(card)
+                        G.GAME.consumeable_buffer = 0
+                        return true
+                    end,
+                }))
+                card_eval_status_text(context.blueprint_card or card, 'extra', nil, nil, nil,{ message = localize('k_duplicated_ex') })
+            end
         end
     end
 }
@@ -1334,9 +1312,13 @@ if JokerDisplay then
         end}            
     jd_def['j_delatro_rebound_funds'] = {
         text = {
+            { text = "+" },
+            { ref_table = "card.ability.extra", ref_value = "payout",   retrigger_type = "mult" },
+        },
+        reminder_text = {
             { ref_table = "card.joker_display_values", ref_value = "active",   retrigger_type = "mult" },
         },
-        text_config = {colour = G.C.UI.TEXT_INACTIVE, scale = 0.35},
+        text_config = {colour = G.C.GOLD,},
         calc_function = function(card)
             if G.GAME.dollars < 1 then
                 card.joker_display_values.active = "(Active)"
@@ -1378,6 +1360,41 @@ if JokerDisplay then
                 end
             end
             return nil
+        end}
+    jd_def['j_delatro_spawntaneity'] = {
+        text = {
+            { text = "+" },
+            { ref_table = "card.joker_display_values", ref_value = "count",   retrigger_type = "mult" },
+        },
+        text_config = {colour = G.C.EDITION,},
+        extra = {
+            {
+                { text = "(" },
+                { ref_table = "card.joker_display_values", ref_value = "odds" },
+                { text = ")" },
+            }
+        },
+        extra_config = { colour = G.C.GREEN, scale = 0.3 },
+        reminder_text = {
+            { text = "(Wild)"},
+        },
+        calc_function = function(card)
+            local text, _, scoring_hand = JokerDisplay.evaluate_hand()
+            local count = 0
+            if text ~= 'Unknown' then
+                for _, scoring_card in pairs(scoring_hand) do
+                    if scoring_hand or scoring_card.highlighted then
+                        if scoring_card.facing and not (scoring_card.facing == 'back') and SMODS.has_enhancement(scoring_card, 'm_wild') then
+                            count = count + (JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand))
+                            JokerDisplay.calculate_card_triggers(scoring_card, scoring_hand)
+                        end
+                    end 
+                end
+            end
+            card.joker_display_values.count = count
+            card.joker_display_values.odds = localize { type = 'variable', key = "jdis_odds", vars = { math.min(G.GAME and G.GAME.probabilities.normal or 1, card.ability.extra.odds), card.ability.extra.odds } }
         end
     }
-end
+
+
+    end
